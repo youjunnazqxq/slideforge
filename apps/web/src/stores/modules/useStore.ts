@@ -1,36 +1,46 @@
 import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
 
-interface UserState {
-  username: string
-  token: string
-}
+export const useStore = defineStore(
+  'user',
+  () => {
+    const username = ref('')
+    const token = ref('')
 
-export const useStore = defineStore('user', {
-  state: (): UserState => ({
-    username: '',
-    token: '',
-  }),
-  getters: {
-    isLogin: (state) => Boolean(state.token),
+    const isLogin = computed(() => Boolean(token.value))
+
+    function setUser(nextUsername: string, nextToken: string) {
+      username.value = nextUsername
+      token.value = nextToken
+    }
+
+    function setUsername(nextUsername: string) {
+      username.value = nextUsername
+    }
+
+    function setToken(nextToken: string) {
+      token.value = nextToken
+    }
+
+    function clearUser() {
+      username.value = ''
+      token.value = ''
+    }
+
+    return {
+      username,
+      token,
+      isLogin,
+      setUser,
+      setUsername,
+      setToken,
+      clearUser,
+    }
   },
-  actions: {
-    setUser(username: string, token: string) {
-      this.username = username
-      this.token = token
-    },
-    setUsername(username: string) {
-      this.username = username
-    },
-    setToken(token: string) {
-      this.token = token
-    },
-    clearUser() {
-      this.username = ''
-      this.token = ''
+  {
+    persist: {
+      key: 'slideforge:user',
+      paths: ['username', 'token'],
     },
   },
-  persist: {
-    key: 'slideforge:user',
-    paths: ['username', 'token'],
-  },
-})
+)
