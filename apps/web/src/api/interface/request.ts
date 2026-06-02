@@ -14,14 +14,14 @@ export interface RequestConfig<D = unknown> extends AxiosRequestConfig<D> {
 
 // 扩展 Axios 内置类型，让拦截器中的 config 能识别上面的业务字段。
 declare module 'axios' {
-  export interface AxiosRequestConfig<D = any> {
+  export interface AxiosRequestConfig{
     skipAuth?: boolean
     cancelRepeat?: boolean
     returnRawResponse?: boolean
     requestKey?: string
   }
 
-  export interface InternalAxiosRequestConfig<D = any> {
+  export interface InternalAxiosRequestConfig {
     skipAuth?: boolean
     cancelRepeat?: boolean
     returnRawResponse?: boolean
