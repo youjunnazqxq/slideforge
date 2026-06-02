@@ -14,6 +14,7 @@ import { addPendingRequest, removePendingRequest } from './helper/cancelRepeatRe
 import { checkStatus } from './helper/checkStatus'
 import type { ApiError, ApiResponse, RequestConfig } from './interface'
 
+// 项目统一请求类：页面和业务模块只使用该类暴露的方法，不直接调用 axios。
 class HttpRequest {
   private readonly instance: AxiosInstance
 
@@ -22,6 +23,7 @@ class HttpRequest {
     this.setInterceptors()
   }
 
+  // 所有快捷方法最终都会走 request，保证拦截器、错误处理和泛型返回一致。
   request<T = unknown>(config: RequestConfig): Promise<T> {
     return this.instance.request<unknown, T>(config)
   }
@@ -46,6 +48,7 @@ class HttpRequest {
     return this.request<T>({ ...config, method: 'DELETE', url })
   }
 
+  // 注册请求和响应拦截器，统一处理 token、重复请求、响应解包和错误格式化。
   private setInterceptors() {
     this.instance.interceptors.request.use(
       (config) => this.handleRequest(config),
@@ -58,6 +61,7 @@ class HttpRequest {
     )
   }
 
+  // 请求发出前：注入 token、补默认 Content-Type，并根据配置处理重复请求。
   private handleRequest(config: InternalAxiosRequestConfig) {
     const userStore = useStore()
 
@@ -74,6 +78,7 @@ class HttpRequest {
     return config
   }
 
+  // 请求成功后：清理 pending 请求，默认把后端通用响应解包成 data 返回。
   private handleResponse<T = unknown>(response: AxiosResponse<ApiResponse<T>>) {
     removePendingRequest(response.config)
 
@@ -100,6 +105,7 @@ class HttpRequest {
     })
   }
 
+  // 请求失败后：把 AxiosError 转成统一 ApiError，业务层只处理一种错误形态。
   private handleResponseError(error: AxiosError<ApiResponse>) {
     removePendingRequest(error.config)
 
@@ -114,11 +120,13 @@ class HttpRequest {
     return Promise.reject(apiError)
   }
 
+  // 兼容暂未套用统一后端结构的接口，避免强行读取 code/data 造成异常。
   private isApiResponse<T>(data: unknown): data is ApiResponse<T> {
     return Boolean(data && typeof data === 'object' && 'code' in data && 'data' in data)
   }
 }
 
+// 默认请求实例。后续 modules 中统一导入这个实例调用接口。
 const request = new HttpRequest(axiosConfig)
 
 export { HttpRequest }

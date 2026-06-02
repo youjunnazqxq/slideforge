@@ -1,3 +1,4 @@
+// HTTP 状态码对应的兜底提示。业务错误优先使用后端返回的 message。
 const statusMessageMap: Record<number, string> = {
   400: '请求参数错误',
   401: '登录状态失效',

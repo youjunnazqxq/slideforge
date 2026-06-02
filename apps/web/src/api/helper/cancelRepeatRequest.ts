@@ -1,5 +1,6 @@
 import type { InternalAxiosRequestConfig } from 'axios'
 
+// 保存正在进行中的请求。key 相同表示 method、url、params、data 都一致。
 const pendingMap = new Map<string, AbortController>()
 
 function stableStringify(value: unknown) {
@@ -20,6 +21,7 @@ export function getRequestKey(config: InternalAxiosRequestConfig) {
   return [method, url, stableStringify(params), stableStringify(data)].join('&')
 }
 
+// 请求发出前调用：如果存在相同请求，取消旧请求并记录最新请求。
 export function addPendingRequest(config: InternalAxiosRequestConfig) {
   if (!config.cancelRepeat) {
     return
@@ -35,6 +37,7 @@ export function addPendingRequest(config: InternalAxiosRequestConfig) {
   pendingMap.set(requestKey, controller)
 }
 
+// 请求结束后调用：清理 pending 记录，避免 Map 一直增长。
 export function removePendingRequest(config?: InternalAxiosRequestConfig) {
   if (!config?.cancelRepeat) {
     return
@@ -49,6 +52,7 @@ export function removePendingRequest(config?: InternalAxiosRequestConfig) {
   }
 }
 
+// 预留给退出登录、路由切换等场景，一次性取消所有未完成请求。
 export function clearPendingRequests() {
   pendingMap.forEach((controller) => {
     controller.abort()
