@@ -14,6 +14,11 @@ import { addPendingRequest, removePendingRequest } from './helper/cancelRepeatRe
 import { checkStatus } from './helper/checkStatus'
 import type { ApiError, ApiResponse, RequestConfig } from './interface'
 
+interface AuthResponsePayload {
+  username?: string
+  token?: string
+}
+
 // 项目统一请求类：页面和业务模块只使用该类暴露的方法，不直接调用 axios。
 class HttpRequest {
   private readonly instance: AxiosInstance
@@ -78,18 +83,20 @@ class HttpRequest {
     return config
   }
 
-  // 请求成功后：清理 pending 请求，默认把后端通用响应解包成 data 返回。
+  // 请求成功后：保存后端返回的 token，清理 pending 请求，并默认解包返回 data。
   private handleResponse<T = unknown>(response: AxiosResponse<ApiResponse<T>>) {
     removePendingRequest(response.config)
-
-    if (response.config.returnRawResponse) {
-      return response
-    }
 
     const responseData = response.data
 
     if (!this.isApiResponse(responseData)) {
       return responseData
+    }
+
+    this.persistAuthFromResponse(responseData.data)
+
+    if (response.config.returnRawResponse) {
+      return response
     }
 
     if (responseData.code === 0 || responseData.code === 200) {
@@ -109,6 +116,10 @@ class HttpRequest {
   private handleResponseError(error: AxiosError<ApiResponse>) {
     removePendingRequest(error.config)
 
+    if (error.response?.status === 401) {
+      useStore().clearUser()
+    }
+
     const apiError: ApiError = {
       code: error.response?.data?.code ?? error.code,
       message: error.response?.data?.message ?? checkStatus(error.response?.status),
@@ -123,6 +134,27 @@ class HttpRequest {
   // 兼容暂未套用统一后端结构的接口，避免强行读取 code/data 造成异常。
   private isApiResponse<T>(data: unknown): data is ApiResponse<T> {
     return Boolean(data && typeof data === 'object' && 'code' in data && 'data' in data)
+  }
+
+  // 后端登录类接口返回 token 时，统一写入 Pinia；Pinia 持久化插件会同步到 localStorage。
+  private persistAuthFromResponse(data: unknown) {
+    if (!this.isAuthResponsePayload(data)) {
+      return
+    }
+
+    const userStore = useStore()
+
+    if (data.username) {
+      userStore.setUsername(data.username)
+    }
+
+    if (data.token) {
+      userStore.setToken(data.token)
+    }
+  }
+
+  private isAuthResponsePayload(data: unknown): data is AuthResponsePayload {
+    return Boolean(data && typeof data === 'object' && 'token' in data)
   }
 }
 
