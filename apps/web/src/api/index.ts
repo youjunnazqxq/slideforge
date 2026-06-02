@@ -12,55 +12,64 @@ import { useStore } from '@/stores'
 import axiosConfig from './config'
 import { addPendingRequest, removePendingRequest } from './helper/cancelRepeatRequest'
 import { checkStatus } from './helper/checkStatus'
-import type { ApiError, ApiResponse, RequestConfig } from './interface'
+import type { ApiError, ApiResponse, RequestConfig, ResultData } from './interface'
 
 interface AuthResponsePayload {
   username?: string
   token?: string
 }
 
+type RequestParams = object
+type RequestBody = object | string
+
 // 项目统一请求类：页面和业务模块只使用该类暴露的方法，不直接调用 axios。
 class HttpRequest {
-  private readonly instance: AxiosInstance
+  private readonly service: AxiosInstance
 
   constructor(config: CreateAxiosDefaults) {
-    this.instance = axios.create(config)
+    this.service = axios.create(config)
     this.setInterceptors()
   }
 
-  // 所有快捷方法最终都会走 request，保证拦截器、错误处理和泛型返回一致。
-  request<T = unknown>(config: RequestConfig): Promise<T> {
-    return this.instance.request<unknown, T>(config)
+  /**
+   * @description 通用请求方法封装
+   */
+  get<T>(url: string, params?: RequestParams, _object: RequestConfig = {}): Promise<ResultData<T>> {
+    return this.service.get(url, { params, ..._object })
   }
 
-  get<T = unknown>(url: string, config?: RequestConfig): Promise<T> {
-    return this.request<T>({ ...config, method: 'GET', url })
+  post<T>(url: string, params?: RequestBody, _object: RequestConfig = {}): Promise<ResultData<T>> {
+    return this.service.post(url, params, _object)
   }
 
-  post<T = unknown, D = unknown>(url: string, data?: D, config?: RequestConfig<D>): Promise<T> {
-    return this.request<T>({ ...config, data, method: 'POST', url })
+  put<T>(url: string, params?: RequestParams, _object: RequestConfig = {}): Promise<ResultData<T>> {
+    return this.service.put(url, params, _object)
   }
 
-  put<T = unknown, D = unknown>(url: string, data?: D, config?: RequestConfig<D>): Promise<T> {
-    return this.request<T>({ ...config, data, method: 'PUT', url })
+  patch<T>(url: string, params?: RequestBody, _object: RequestConfig = {}): Promise<ResultData<T>> {
+    return this.service.patch(url, params, _object)
   }
 
-  patch<T = unknown, D = unknown>(url: string, data?: D, config?: RequestConfig<D>): Promise<T> {
-    return this.request<T>({ ...config, data, method: 'PATCH', url })
+  delete<T>(
+    url: string,
+    params?: RequestParams,
+    _object: RequestConfig = {},
+  ): Promise<ResultData<T>> {
+    return this.service.delete(url, { params, ..._object })
   }
 
-  delete<T = unknown>(url: string, config?: RequestConfig): Promise<T> {
-    return this.request<T>({ ...config, method: 'DELETE', url })
+  download(url: string, params?: RequestParams, _object: RequestConfig = {}): Promise<BlobPart> {
+    return this.service.post(url, params, { ..._object, responseType: 'blob' })
   }
 
-  // 注册请求和响应拦截器，统一处理 token、重复请求、响应解包和错误格式化。
+  // 注册请求和响应拦截器，统一处理 token、重复请求、响应校验和错误格式化。
   private setInterceptors() {
-    this.instance.interceptors.request.use(
+    this.service.interceptors.request.use(
       (config) => this.handleRequest(config),
       (error: AxiosError) => Promise.reject(error),
     )
 
-    this.instance.interceptors.response.use(
+    this.service.interceptors.response.use(
       (response) => this.handleResponse(response) as unknown as AxiosResponse,
       (error: AxiosError<ApiResponse>) => this.handleResponseError(error),
     )
@@ -83,9 +92,13 @@ class HttpRequest {
     return config
   }
 
-  // 请求成功后：保存后端返回的 token，清理 pending 请求，并默认解包返回 data。
+  // 请求成功后：保存后端返回的 token，清理 pending 请求，并返回后端统一响应结构。
   private handleResponse<T = unknown>(response: AxiosResponse<ApiResponse<T>>) {
     removePendingRequest(response.config)
+
+    if (response.config.responseType === 'blob') {
+      return response.data
+    }
 
     const responseData = response.data
 
@@ -100,7 +113,7 @@ class HttpRequest {
     }
 
     if (responseData.code === 0 || responseData.code === 200) {
-      return responseData.data
+      return responseData
     }
 
     return Promise.reject<ApiError>({

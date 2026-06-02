@@ -1,8 +1,6 @@
 import request from '@/api'
 import { servicePrefix } from '@/api/config/servicePrefix'
 
-import type { ApiResponse } from '../interface'
-
 // 登录接口入参，后续可根据真实后端字段调整。
 export interface LoginParams {
   username: string
@@ -15,19 +13,10 @@ export interface LoginResult {
   token: string
 }
 
-// 默认返回解包后的 data，即 LoginResult。
+// 默认返回后端统一响应结构 ResultData<LoginResult>。
 export function login(data: LoginParams) {
-  return request.post<LoginResult, LoginParams>(`${servicePrefix.auth}/login`, data, {
+  return request.post<LoginResult>(`${servicePrefix.auth}/login`, data, {
     cancelRepeat: true,
-    skipAuth: true,
-  })
-}
-
-// 示例：需要完整后端响应结构时开启 returnRawResponse。
-export function getLoginRawResponse(data: LoginParams) {
-  return request.post<ApiResponse<LoginResult>, LoginParams>(`${servicePrefix.auth}/login`, data, {
-    cancelRepeat: true,
-    returnRawResponse: true,
     skipAuth: true,
   })
 }
