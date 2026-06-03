@@ -15,7 +15,7 @@ export interface LoginResult {
 
 // 默认返回后端统一响应结构 ResultData<LoginResult>。
 export function login(data: LoginParams) {
-  return request.post<LoginResult>(`${servicePrefix.auth}/login`, data, {
+  return request.post<LoginResult>(servicePrefix.auth, data, {
     cancelRepeat: true,
     skipAuth: true,
   })
