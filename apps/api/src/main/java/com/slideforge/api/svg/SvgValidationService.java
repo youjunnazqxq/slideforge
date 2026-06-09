@@ -16,7 +16,12 @@ public class SvgValidationService {
     private static final int CANVAS_HEIGHT = 720;
     private static final Pattern RECT_PATTERN = Pattern.compile("<rect\\b[^>]*>", Pattern.CASE_INSENSITIVE);
     private static final Pattern TEXT_PATTERN = Pattern.compile("<text\\b([^>]*)>(.*?)</text>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern SVG_OPEN_PATTERN = Pattern.compile("<svg\\b([^>]*)>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final Pattern ATTRIBUTE_PATTERN = Pattern.compile("\\b([a-zA-Z_:][-a-zA-Z0-9_:.]*)\\s*=\\s*['\"]([^'\"]*)['\"]");
+    private static final Pattern EXTERNAL_RESOURCE_PATTERN = Pattern.compile(
+            "\\b(?:href|xlink:href|src)\\s*=\\s*['\"]https?://|url\\s*\\(\\s*['\"]?https?://",
+            Pattern.CASE_INSENSITIVE
+    );
 
     public String sanitize(String rawSvg) {
         if (!StringUtils.hasText(rawSvg)) {
@@ -49,6 +54,10 @@ public class SvgValidationService {
             warnings.add("缺少 svg 根节点");
         }
 
+        if (!normalized.contains("</svg>")) {
+            warnings.add("SVG root is not closed");
+        }
+
         if (!svg.contains("viewBox=\"0 0 1280 720\"") && !svg.contains("viewBox='0 0 1280 720'")) {
             warnings.add("viewBox 不是 0 0 1280 720");
         }
@@ -61,7 +70,7 @@ public class SvgValidationService {
             warnings.add("包含 foreignObject 标签");
         }
 
-        if (normalized.contains("http://") || normalized.contains("https://")) {
+        if (EXTERNAL_RESOURCE_PATTERN.matcher(svg).find()) {
             warnings.add("包含外部资源 URL");
         }
 
@@ -69,11 +78,59 @@ public class SvgValidationService {
             warnings.add("包含 javascript URL");
         }
 
+        validateRootSize(svg, warnings);
+        validatePptxImportSafety(normalized, warnings);
         validateRectBounds(svg, warnings);
         validateTextBoundsAndDensity(svg, warnings);
         validateElementDensity(svg, warnings);
 
         return new ValidationReport(warnings.isEmpty(), warnings);
+    }
+
+    private void validateRootSize(String svg, List<String> warnings) {
+        Matcher matcher = SVG_OPEN_PATTERN.matcher(svg);
+
+        if (!matcher.find()) {
+            return;
+        }
+
+        String attributes = matcher.group(1);
+        String width = attributeValue(attributes, "width");
+        String height = attributeValue(attributes, "height");
+
+        if (StringUtils.hasText(width) && !isCanvasSize(width, CANVAS_WIDTH)) {
+            warnings.add("SVG width should be 1280");
+        }
+
+        if (StringUtils.hasText(height) && !isCanvasSize(height, CANVAS_HEIGHT)) {
+            warnings.add("SVG height should be 720");
+        }
+    }
+
+    private void validatePptxImportSafety(String normalized, List<String> warnings) {
+        if (normalized.contains("<style") || normalized.contains("</style>")) {
+            warnings.add("Inline style blocks are risky for PPTX import");
+        }
+
+        if (normalized.contains("@import") || normalized.contains("@font-face")) {
+            warnings.add("External font CSS is not allowed");
+        }
+
+        if (normalized.contains("data:")) {
+            warnings.add("Embedded data URLs are not allowed");
+        }
+
+        if (normalized.contains("href=\"http") || normalized.contains("href='http") || normalized.contains("xlink:href=\"http") || normalized.contains("xlink:href='http")) {
+            warnings.add("External href resources are not allowed");
+        }
+
+        if (normalized.contains("<filter") || normalized.contains(" filter=")) {
+            warnings.add("SVG filters may not survive PPTX import");
+        }
+
+        if (countMatches(normalized, Pattern.compile("<clippath\\b", Pattern.CASE_INSENSITIVE)) > 4) {
+            warnings.add("Too many clipPath elements for reliable PPTX import");
+        }
     }
 
     private void validateRectBounds(String svg, List<String> warnings) {
@@ -152,18 +209,38 @@ public class SvgValidationService {
     }
 
     private double attributeNumber(String value, String attributeName, double fallback) {
+        String rawValue = attributeValue(value, attributeName);
+
+        if (!StringUtils.hasText(rawValue)) {
+            return fallback;
+        }
+
+        try {
+            return Double.parseDouble(rawValue);
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
+    }
+
+    private String attributeValue(String value, String attributeName) {
         Matcher matcher = ATTRIBUTE_PATTERN.matcher(value);
 
         while (matcher.find()) {
             if (attributeName.equalsIgnoreCase(matcher.group(1))) {
-                try {
-                    return Double.parseDouble(matcher.group(2));
-                } catch (NumberFormatException exception) {
-                    return fallback;
-                }
+                return matcher.group(2);
             }
         }
 
-        return fallback;
+        return "";
+    }
+
+    private boolean isCanvasSize(String value, int expected) {
+        String normalized = value.trim().toLowerCase(Locale.ROOT).replace("px", "");
+
+        try {
+            return Double.compare(Double.parseDouble(normalized), expected) == 0;
+        } catch (NumberFormatException exception) {
+            return false;
+        }
     }
 }
