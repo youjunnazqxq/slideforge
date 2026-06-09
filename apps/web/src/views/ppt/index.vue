@@ -499,6 +499,27 @@
           <span>{{ draftStore.pagePlan.coreMessage }}</span>
         </section>
 
+        <section class="export-gate">
+          <header>
+            <p>Export Gate</p>
+            <el-tag :type="exportGateReady ? 'success' : 'warning'">
+              {{ exportGateReady ? 'ready' : 'review' }}
+            </el-tag>
+          </header>
+          <article>
+            <strong>{{ draftStore.status }}</strong>
+            <span>SVG status</span>
+          </article>
+          <article :class="{ 'is-warning': draftStore.validationWarnings.length }">
+            <strong>{{ draftStore.validationWarnings.length }}</strong>
+            <span>validation warnings</span>
+          </article>
+          <article :class="{ 'is-warning': unlinkedBlocks.length }">
+            <strong>{{ linkedBlockCount }} / {{ draftStore.pagePlan.contentBlocks.length }}</strong>
+            <span>evidence-linked blocks</span>
+          </article>
+        </section>
+
         <div class="assistant-input">
           <el-input
             v-model="draftStore.userPrompt"
@@ -585,6 +606,9 @@ const linkedBlockCount = computed(
 )
 const unlinkedBlocks = computed(() =>
   draftStore.pagePlan.contentBlocks.filter((block) => !safeSourceIds(block.sourceIds).length),
+)
+const exportGateReady = computed(
+  () => draftStore.status === 'SVG_READY' && !draftStore.validationWarnings.length && !unlinkedBlocks.value.length,
 )
 const citedSourceRows = computed(() => {
   const rows = new Map<string, { id: string; label: string; blockTitles: string[] }>()
@@ -1764,6 +1788,65 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
     color: #6b7280;
     font-size: 13px;
     line-height: 1.6;
+  }
+}
+
+.export-gate {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  p,
+  strong,
+  span {
+    margin: 0;
+  }
+
+  p {
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  article {
+    display: grid;
+    gap: 2px;
+    padding: 8px;
+    border: 1px solid #dcfce7;
+    border-radius: 8px;
+    background: #f0fdf4;
+  }
+
+  strong {
+    overflow: hidden;
+    color: #166534;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    color: #6b7280;
+    font-size: 11px;
+  }
+
+  .is-warning {
+    border-color: #fed7aa;
+    background: #fff7ed;
+
+    strong {
+      color: #9a3412;
+    }
   }
 }
 

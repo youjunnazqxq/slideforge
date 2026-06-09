@@ -33,6 +33,7 @@ This checklist tracks SlideForge against the referenced PPT Agent workflow:
 - Deck Research Pack now displays claim/support evidence cards with source labels, so deck-level research is inspectable before outline and sticky-note planning.
 - VisualSpec and SVG prompts now preserve page-plan source boundaries and ask generated SVG card groups to carry `data-source-ids` for downstream traceability.
 - Bento layout patterns now cover the website prompt's broader set: single-focus, two-column, asymmetric, three-column, hero-left, hero-top, mosaic, and split-hero.
+- One-page assistant panel now includes an Export Gate summarizing SVG readiness, validation warnings, and evidence-linked block coverage before PPTX export.
 
 ## Remaining Gaps
 
