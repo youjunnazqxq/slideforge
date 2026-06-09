@@ -144,6 +144,25 @@ public class DeckDraftService {
         return researchPack;
     }
 
+    public DeckDraftResponse runAgentFlow(String deckId, String requestedMode) {
+        DeckDraftEntity draft = getExistingDraft(deckId);
+        consult(deckId, draft.getInitialPrompt());
+        generateResearch(deckId, requestedMode);
+        generateOutline(deckId);
+        createOnePageDraftsFromSlides(deckId);
+        createPagePlanDraftsFromSlides(deckId);
+        createVisualSpecDraftsFromSlides(deckId);
+        List<DeckSlideDraftResponse> svgDrafts = createSvgDraftsFromSlides(deckId);
+
+        for (DeckSlideDraftResponse svgDraft : svgDrafts) {
+            if ("FAILED".equals(svgDraft.status())) {
+                createSvgDraftFromSlide(deckId, svgDraft.slideId());
+            }
+        }
+
+        return getDraft(deckId);
+    }
+
     public List<SlideStickyNote> saveStickyNotes(String deckId, List<SlideStickyNote> stickyNotes) {
         DeckDraftEntity draft = getExistingDraft(deckId);
         List<SlideStickyNote> normalized = normalizeStickyNotes(stickyNotes);

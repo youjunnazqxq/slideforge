@@ -111,6 +111,10 @@ export function generateDeckResearch(deckId: string, data?: { mode: 'model-only'
   return request.post<DeckResearchPackResponse>(`${servicePrefix.decks}/${deckId}/research`, data)
 }
 
+export function runDeckAgentFlow(deckId: string, data?: { mode: 'model-only' | 'search-assisted' }) {
+  return request.post<DeckDraftResponse>(`${servicePrefix.decks}/${deckId}/agent-flow`, data)
+}
+
 export function consultDeckDraft(deckId: string, data: DeckConsultRequest) {
   return request.post<DeckConsultResponse>(`${servicePrefix.decks}/${deckId}/consult`, data)
 }

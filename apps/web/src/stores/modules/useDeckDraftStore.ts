@@ -14,6 +14,7 @@ import {
   generateDeckResearch as requestGenerateDeckResearch,
   generateDeckOutline as requestGenerateDeckOutline,
   getDeckDraft,
+  runDeckAgentFlow as requestRunDeckAgentFlow,
   saveDeckStickyNotes,
   type DeckDraftResponse,
   type DeckOutlineResponse,
@@ -135,6 +136,17 @@ export const useDeckDraftStore = defineStore(
         const response = await consultDeckDraft(id, { message: initialPrompt.value })
         assistantMessage.value = response.data.message
         status.value = 'CONSULTED'
+        await loadWorkflowRuns(id)
+      })
+    }
+
+    async function runDeckAgentFlow() {
+      const id = await ensureDeck()
+
+      await runWithLoading('outline', async () => {
+        const response = await requestRunDeckAgentFlow(id, { mode: researchMode.value })
+        applyDraft(response.data)
+        await loadSlidePreviews()
         await loadWorkflowRuns(id)
       })
     }
@@ -419,6 +431,7 @@ export const useDeckDraftStore = defineStore(
       reorderStickyNotes,
       retrySlideSvg,
       retryFailedSlideSvgs,
+      runDeckAgentFlow,
       saveStickyNotes,
     }
   },

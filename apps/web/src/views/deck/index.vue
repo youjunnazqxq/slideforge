@@ -331,15 +331,6 @@ const draggingSlideId = ref('')
 const fullPipelineRunning = ref(false)
 const fullPipelineStep = ref('')
 const pageTypeOptions = ['cover', 'agenda', 'section', 'content', 'summary']
-const fullAgentFlowSteps = [
-  ['consult', () => deckStore.consultDeck()],
-  ['research', () => deckStore.generateDeckResearch()],
-  ['outline', () => deckStore.generateDeckOutline()],
-  ['one-page drafts', () => deckStore.createAllOnePageDrafts()],
-  ['page plans', () => deckStore.createAllPagePlanDrafts()],
-  ['bento specs', () => deckStore.createAllVisualSpecDrafts()],
-  ['svg pages', () => deckStore.generateAllSlideSvgs()],
-] as const
 
 const svgReadyCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'SVG_READY').length)
 const failedCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'FAILED').length)
@@ -465,18 +456,10 @@ async function retryFailedSvgs() {
 
 async function runFullAgentFlow() {
   fullPipelineRunning.value = true
+  fullPipelineStep.value = 'server agent flow'
 
   try {
-    for (const [label, action] of fullAgentFlowSteps) {
-      fullPipelineStep.value = label
-      await action()
-    }
-
-    if (failedCount.value) {
-      fullPipelineStep.value = 'retry failed svgs'
-      await deckStore.retryFailedSlideSvgs()
-    }
-
+    await deckStore.runDeckAgentFlow()
     fullPipelineStep.value = 'complete'
     ElMessage.success(`Agent flow complete: ${svgReadyCount.value} SVG ready`)
   } finally {

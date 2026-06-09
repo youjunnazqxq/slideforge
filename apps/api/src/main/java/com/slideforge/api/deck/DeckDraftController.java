@@ -67,6 +67,15 @@ public class DeckDraftController {
         return ApiResponse.success(deckDraftService.generateResearch(deckId, mode));
     }
 
+    @PostMapping("/{deckId}/agent-flow")
+    public ApiResponse<DeckDraftResponse> runAgentFlow(
+            @PathVariable String deckId,
+            @RequestBody(required = false) GenerateResearchRequest request
+    ) {
+        String mode = request == null ? "model-only" : request.normalizedMode();
+        return ApiResponse.success(deckDraftService.runAgentFlow(deckId, mode));
+    }
+
     @PutMapping("/{deckId}/sticky-notes")
     public ApiResponse<List<SlideStickyNote>> saveStickyNotes(
             @PathVariable String deckId,
