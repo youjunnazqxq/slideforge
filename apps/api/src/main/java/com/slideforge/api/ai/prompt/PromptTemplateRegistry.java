@@ -193,6 +193,41 @@ public class PromptTemplateRegistry {
                             """,
                     "json",
                     4096
+            ),
+            PromptKeys.JSON_REPAIR,
+            new PromptTemplate(
+                    PromptKeys.JSON_REPAIR,
+                    "v1",
+                    COMMON_SYSTEM + """
+                            你是 JSON 修复器。你的任务是把输入内容修复成合法 JSON。
+                            不要改变字段含义，不要新增业务内容，不要输出 Markdown。
+                            """,
+                    """
+                            请修复以下内容，使其成为可被 JSON.parse / ObjectMapper 解析的 JSON。
+
+                            原始内容：
+                            {{brokenContent}}
+                            """,
+                    "json",
+                    2048
+            ),
+            PromptKeys.SVG_REPAIR,
+            new PromptTemplate(
+                    PromptKeys.SVG_REPAIR,
+                    "v1",
+                    COMMON_SYSTEM + """
+                            你是 SVG 修复器。请修复输入 SVG，使其满足安全和渲染要求。
+                            必须移除 script、foreignObject、外部图片、外部字体和外部 CSS。
+                            根节点必须是 svg，viewBox 必须是 0 0 1280 720。
+                            """,
+                    """
+                            请修复以下 SVG。只输出完整 <svg>...</svg>。
+
+                            SVG：
+                            {{brokenContent}}
+                            """,
+                    "text",
+                    4096
             )
     );
 

@@ -51,6 +51,14 @@ public class OnePagePromptService {
         return render(PromptKeys.SVG_GENERATE, Map.of("pagePlanJson", pagePlanJson));
     }
 
+    public RenderedPrompt jsonRepair(String brokenContent) {
+        return render(PromptKeys.JSON_REPAIR, Map.of("brokenContent", brokenContent));
+    }
+
+    public RenderedPrompt svgRepair(String brokenContent) {
+        return render(PromptKeys.SVG_REPAIR, Map.of("brokenContent", brokenContent));
+    }
+
     private RenderedPrompt render(String key, Map<String, String> variables) {
         return promptRenderer.render(promptTemplateRegistry.get(key), variables);
     }

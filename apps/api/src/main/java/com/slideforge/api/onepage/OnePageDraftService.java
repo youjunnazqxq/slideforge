@@ -85,7 +85,7 @@ public class OnePageDraftService {
         OnePageDraftEntity draft = getExistingDraft(draftId);
         RenderedPrompt prompt = onePagePromptService.brief(draft.getInitialPrompt());
         AiChatResponse response = callPrompt(prompt);
-        RequirementBrief brief = parseModelJson(response.content(), RequirementBrief.class);
+        RequirementBrief brief = parseModelJsonWithRepair(response.content(), RequirementBrief.class);
 
         draft.setRequirementBriefJson(toJson(brief));
         draft.setStatus("BRIEF_READY");
@@ -125,7 +125,7 @@ public class OnePageDraftService {
                 toJson(sources)
         );
         AiChatResponse response = callPrompt(prompt);
-        ResearchPack researchPack = normalizeResearchPack(parseModelJson(response.content(), ResearchPack.class), researchMode, sources);
+        ResearchPack researchPack = normalizeResearchPack(parseModelJsonWithRepair(response.content(), ResearchPack.class), researchMode, sources);
 
         draft.setResearchPackJson(toJson(researchPack));
         draft.setStatus("RESEARCH_READY");
@@ -146,7 +146,7 @@ public class OnePageDraftService {
                 draft.getResearchPackJson()
         );
         AiChatResponse response = callPrompt(prompt);
-        PagePlan pagePlan = parseModelJson(response.content(), PagePlan.class);
+        PagePlan pagePlan = parseModelJsonWithRepair(response.content(), PagePlan.class);
 
         draft.setPagePlanJson(toJson(pagePlan));
         draft.setVisualSpecJson(toJson(generateVisualSpec()));
@@ -179,6 +179,11 @@ public class OnePageDraftService {
         String rawSvg = extractSvg(response.content());
         String sanitizedSvg = svgValidationService.sanitize(rawSvg);
         ValidationReport validationReport = svgValidationService.validate(sanitizedSvg);
+
+        if (!validationReport.valid()) {
+            sanitizedSvg = repairSvg(sanitizedSvg);
+            validationReport = svgValidationService.validate(sanitizedSvg);
+        }
 
         draft.setSvgContent(sanitizedSvg);
         draft.setValidationReportJson(toJson(validationReport));
@@ -294,6 +299,23 @@ public class OnePageDraftService {
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 返回 JSON 格式不合法。");
         }
+    }
+
+    private <T> T parseModelJsonWithRepair(String content, Class<T> type) {
+        try {
+            return parseModelJson(content, type);
+        } catch (ResponseStatusException exception) {
+            RenderedPrompt repairPrompt = onePagePromptService.jsonRepair(content);
+            AiChatResponse repairResponse = callPrompt(repairPrompt);
+            return parseModelJson(repairResponse.content(), type);
+        }
+    }
+
+    private String repairSvg(String svgContent) {
+        RenderedPrompt repairPrompt = onePagePromptService.svgRepair(svgContent);
+        AiChatResponse repairResponse = callPrompt(repairPrompt);
+        String repairedSvg = extractSvg(repairResponse.content());
+        return svgValidationService.sanitize(repairedSvg);
     }
 
     private String extractJsonObject(String content) {
