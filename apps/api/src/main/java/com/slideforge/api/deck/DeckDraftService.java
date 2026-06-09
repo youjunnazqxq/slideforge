@@ -435,12 +435,36 @@ public class DeckDraftService {
         }
 
         Map<String, SearchResult> results = new LinkedHashMap<>();
-        searchClient.search(draft.getInitialPrompt()).stream()
-                .limit(8)
-                .forEach(result -> results.putIfAbsent(result.url(), result));
+        for (String query : planDeckSearchQueries(draft)) {
+            searchClient.search(query).stream()
+                    .limit(5)
+                    .forEach(result -> results.putIfAbsent(result.url(), result));
+        }
         return results.values().stream()
                 .limit(8)
                 .toList();
+    }
+
+    private List<String> planDeckSearchQueries(DeckDraftEntity draft) {
+        try {
+            RenderedPrompt prompt = onePagePromptService.searchQueries(deckBriefJson(draft));
+            AiChatResponse response = aiRuntimeService.chat(
+                    LOCAL_USER_ID,
+                    prompt.messages(),
+                    prompt.responseFormat(),
+                    prompt.maxTokens()
+            );
+            SearchQueryPlan plan = parseModelJson(response.content(), SearchQueryPlan.class);
+            List<String> queries = plan.queries() == null ? List.of() : plan.queries().stream()
+                    .filter(this::hasText)
+                    .map(String::trim)
+                    .distinct()
+                    .limit(5)
+                    .toList();
+            return queries.isEmpty() ? List.of(draft.getInitialPrompt()) : queries;
+        } catch (RuntimeException exception) {
+            return List.of(draft.getInitialPrompt());
+        }
     }
 
     private String deckBriefJson(DeckDraftEntity draft) {
@@ -777,5 +801,8 @@ public class DeckDraftService {
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "生成草稿 JSON 解析失败。");
         }
+    }
+
+    private record SearchQueryPlan(List<String> queries) {
     }
 }
