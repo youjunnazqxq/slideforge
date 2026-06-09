@@ -1,0 +1,25 @@
+server:
+  port: 8080
+  address: ${SERVER_ADDRESS:0.0.0.0}
+
+spring:
+  application:
+    name: slideforge-api
+  datasource:
+    url: ${DB_URL:jdbc:h2:mem:slideforge;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+slideforge:
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://127.0.0.1:5173
