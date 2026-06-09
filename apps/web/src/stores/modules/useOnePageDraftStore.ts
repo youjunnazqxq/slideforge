@@ -4,6 +4,7 @@ import { computed, reactive, ref } from 'vue'
 import {
   consultOnePageDraft,
   createOnePageDraft,
+  exportOnePagePptx,
   generateBrief as requestGenerateBrief,
   generatePagePlan as requestGeneratePagePlan,
   generateResearch as requestGenerateResearch,
@@ -255,6 +256,18 @@ export const useOnePageDraftStore = defineStore(
       })
     }
 
+    async function exportPptx() {
+      const id = await ensureDraft()
+
+      if (!svgContent.value || status.value !== 'SVG_READY') {
+        await regenerateSvg()
+      }
+
+      return runWithLoading('svg', async () => {
+        return exportOnePagePptx(id)
+      })
+    }
+
     async function runWithLoading<T>(stage: LoadingStage, task: () => Promise<T>) {
       loadingStage.value = stage
       errorMessage.value = ''
@@ -369,6 +382,7 @@ export const useOnePageDraftStore = defineStore(
       generateBrief,
       generatePagePlan,
       generateResearch,
+      exportPptx,
       loadDraft,
       regenerateSvg,
       setStage,

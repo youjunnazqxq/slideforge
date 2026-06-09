@@ -11,6 +11,10 @@ import com.slideforge.api.onepage.dto.RequirementBrief;
 import com.slideforge.api.onepage.dto.ResearchPack;
 import com.slideforge.api.onepage.dto.SvgGenerateResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,9 +28,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class OnePageDraftController {
 
     private final OnePageDraftService onePageDraftService;
+    private final OnePagePptxExportService onePagePptxExportService;
 
-    public OnePageDraftController(OnePageDraftService onePageDraftService) {
+    public OnePageDraftController(
+            OnePageDraftService onePageDraftService,
+            OnePagePptxExportService onePagePptxExportService
+    ) {
         this.onePageDraftService = onePageDraftService;
+        this.onePagePptxExportService = onePagePptxExportService;
     }
 
     @PostMapping
@@ -88,5 +97,18 @@ public class OnePageDraftController {
     @PostMapping("/{draftId}/svg/regenerate")
     public ApiResponse<SvgGenerateResponse> regenerateSvg(@PathVariable String draftId) {
         return ApiResponse.success(onePageDraftService.generateSvg(draftId));
+    }
+
+    @PostMapping("/{draftId}/export/pptx")
+    public ResponseEntity<byte[]> exportPptx(@PathVariable String draftId) {
+        OnePagePptxExportService.ExportedPptx exported = onePagePptxExportService.exportDraft(draftId);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.presentationml.presentation"))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(exported.fileName()).build().toString()
+                )
+                .body(exported.content());
     }
 }

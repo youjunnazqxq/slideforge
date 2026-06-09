@@ -117,3 +117,7 @@ export function generatePagePlan(draftId: string) {
 export function generateSvg(draftId: string) {
   return request.post<SvgGenerateResponse>(`${servicePrefix.onePage}/drafts/${draftId}/svg`)
 }
+
+export function exportOnePagePptx(draftId: string) {
+  return request.download(`${servicePrefix.onePage}/drafts/${draftId}/export/pptx`)
+}

@@ -58,6 +58,14 @@
           >
             生成 SVG
           </el-button>
+          <el-button
+            :icon="Download"
+            :loading="draftStore.loadingStage === 'svg'"
+            plain
+            @click="runAction(downloadPptx)"
+          >
+            导出 PPTX
+          </el-button>
         </div>
       </header>
 
@@ -337,6 +345,20 @@ function downloadSvg() {
   const link = document.createElement('a')
   link.href = url
   link.download = 'slideforge-one-page.svg'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+async function downloadPptx() {
+  const blobPart = await draftStore.exportPptx()
+  const blob = new Blob([blobPart], {
+    type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = `slideforge-one-page-${draftStore.draftId.slice(0, 8) || 'draft'}.pptx`
   link.click()
   URL.revokeObjectURL(url)
 }
