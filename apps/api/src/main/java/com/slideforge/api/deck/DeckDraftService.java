@@ -10,6 +10,8 @@ import com.slideforge.api.deck.dto.CreateDeckDraftResponse;
 import com.slideforge.api.deck.dto.DeckDraftResponse;
 import com.slideforge.api.deck.dto.DeckOutline;
 import com.slideforge.api.deck.dto.SlideStickyNote;
+import com.slideforge.api.onepage.OnePageDraftService;
+import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
 import com.slideforge.api.workflow.WorkflowRun;
 import com.slideforge.api.workflow.WorkflowRunRepository;
 import java.util.ArrayList;
@@ -27,6 +29,7 @@ public class DeckDraftService {
     private final DeckDraftRepository deckDraftRepository;
     private final DeckPromptService deckPromptService;
     private final AiRuntimeService aiRuntimeService;
+    private final OnePageDraftService onePageDraftService;
     private final WorkflowRunRepository workflowRunRepository;
     private final ObjectMapper objectMapper;
 
@@ -34,12 +37,14 @@ public class DeckDraftService {
             DeckDraftRepository deckDraftRepository,
             DeckPromptService deckPromptService,
             AiRuntimeService aiRuntimeService,
+            OnePageDraftService onePageDraftService,
             WorkflowRunRepository workflowRunRepository,
             ObjectMapper objectMapper
     ) {
         this.deckDraftRepository = deckDraftRepository;
         this.deckPromptService = deckPromptService;
         this.aiRuntimeService = aiRuntimeService;
+        this.onePageDraftService = onePageDraftService;
         this.workflowRunRepository = workflowRunRepository;
         this.objectMapper = objectMapper;
     }
@@ -75,6 +80,40 @@ public class DeckDraftService {
         deckDraftRepository.save(draft);
         recordWorkflow(draft, prompt, toJson(outline), start);
         return outline;
+    }
+
+    public CreateOnePageDraftResponse createOnePageDraftFromSlide(String deckId, String slideId) {
+        DeckDraftEntity draft = getExistingDraft(deckId);
+        DeckOutline outline = fromJson(draft.getOutlineJson(), DeckOutline.class);
+
+        if (outline == null || outline.slides() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请先生成完整大纲。");
+        }
+
+        DeckOutline.Slide slide = outline.slides().stream()
+                .filter(item -> item.id().equals(slideId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "页面不存在。"));
+
+        String prompt = """
+                请基于完整 PPT 大纲中的单页便利贴，生成这一页的一页 PPT。
+
+                Deck 标题：%s
+                Deck 核心论点：%s
+                当前页标题：%s
+                当前页核心信息：%s
+                当前页目的：%s
+                当前页类型：%s
+                """.formatted(
+                outline.title(),
+                outline.coreThesis(),
+                slide.title(),
+                slide.message(),
+                slide.purpose(),
+                slide.type()
+        );
+
+        return onePageDraftService.createDraft(prompt);
     }
 
     private List<SlideStickyNote> toStickyNotes(DeckOutline outline) {

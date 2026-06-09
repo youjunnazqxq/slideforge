@@ -10,6 +10,11 @@ export interface CreateDeckDraftResponse {
   status: string
 }
 
+export interface CreateOnePageDraftFromDeckResponse {
+  draftId: string
+  status: string
+}
+
 export interface DeckOutlineResponse {
   title: string
   audience: string
@@ -60,4 +65,10 @@ export function getDeckDraft(deckId: string) {
 
 export function generateDeckOutline(deckId: string) {
   return request.post<DeckOutlineResponse>(`${servicePrefix.decks}/${deckId}/outline`)
+}
+
+export function createOnePageDraftFromDeckSlide(deckId: string, slideId: string) {
+  return request.post<CreateOnePageDraftFromDeckResponse>(
+    `${servicePrefix.decks}/${deckId}/slides/${slideId}/one-page-draft`,
+  )
 }

@@ -82,6 +82,14 @@
             <p>{{ note.sectionTitle || '未分组' }}</p>
             <h3>{{ note.title }}</h3>
             <span>{{ note.message }}</span>
+            <el-button
+              :loading="creatingSlideId === note.slideId"
+              plain
+              size="small"
+              @click="runAction(() => createOnePage(note.slideId))"
+            >
+              生成单页
+            </el-button>
           </article>
         </div>
       </section>
@@ -91,11 +99,17 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
+import { createOnePageDraftFromDeckSlide } from '@/api/modules/deck'
 import { useDeckDraftStore } from '@/stores'
+import { useOnePageDraftStore } from '@/stores'
 
 const deckStore = useDeckDraftStore()
+const onePageStore = useOnePageDraftStore()
+const router = useRouter()
+const creatingSlideId = ref('')
 
 const visibleStickyNotes = computed(() => {
   if (deckStore.stickyNotes.length) {
@@ -118,6 +132,22 @@ async function runAction(action: () => Promise<unknown>) {
     await action()
   } catch {
     ElMessage.error(deckStore.errorMessage || '操作失败')
+  }
+}
+
+async function createOnePage(slideId: string) {
+  if (!deckStore.deckId) {
+    await deckStore.createDraft()
+  }
+
+  creatingSlideId.value = slideId
+
+  try {
+    const response = await createOnePageDraftFromDeckSlide(deckStore.deckId, slideId)
+    await onePageStore.loadDraft(response.data.draftId)
+    await router.push('/app/one-page')
+  } finally {
+    creatingSlideId.value = ''
   }
 }
 </script>
@@ -324,6 +354,10 @@ async function runAction(action: () => Promise<unknown>) {
   span {
     color: #4b5563;
     line-height: 1.55;
+  }
+
+  .el-button {
+    margin-top: 14px;
   }
 }
 

@@ -5,6 +5,7 @@ import com.slideforge.api.deck.dto.CreateDeckDraftRequest;
 import com.slideforge.api.deck.dto.CreateDeckDraftResponse;
 import com.slideforge.api.deck.dto.DeckDraftResponse;
 import com.slideforge.api.deck.dto.DeckOutline;
+import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,5 +39,13 @@ public class DeckDraftController {
     @PostMapping("/{deckId}/outline")
     public ApiResponse<DeckOutline> generateOutline(@PathVariable String deckId) {
         return ApiResponse.success(deckDraftService.generateOutline(deckId));
+    }
+
+    @PostMapping("/{deckId}/slides/{slideId}/one-page-draft")
+    public ApiResponse<CreateOnePageDraftResponse> createOnePageDraftFromSlide(
+            @PathVariable String deckId,
+            @PathVariable String slideId
+    ) {
+        return ApiResponse.success(deckDraftService.createOnePageDraftFromSlide(deckId, slideId));
     }
 }
