@@ -182,7 +182,13 @@
           >
             <div class="sticky-note__top">
               <span>{{ note.order }}</span>
-              <el-tag size="small">{{ note.tags?.[0] || 'slide' }}</el-tag>
+              <el-select
+                :model-value="note.tags?.[0] || 'content'"
+                size="small"
+                @update:model-value="(value: string) => setPrimaryTag(note, value)"
+              >
+                <el-option v-for="option in pageTypeOptions" :key="option" :label="option" :value="option" />
+              </el-select>
             </div>
 
             <el-input v-model="note.sectionTitle" size="small" placeholder="章节" />
@@ -285,6 +291,7 @@ const onePageStore = useOnePageDraftStore()
 const router = useRouter()
 const creatingSlideId = ref('')
 const draggingSlideId = ref('')
+const pageTypeOptions = ['cover', 'agenda', 'section', 'content', 'summary']
 
 const svgReadyCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'SVG_READY').length)
 const failedCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'FAILED').length)
@@ -340,6 +347,10 @@ async function createOnePage(slideId: string) {
   } finally {
     creatingSlideId.value = ''
   }
+}
+
+function setPrimaryTag(note: { tags?: string[] }, value: string) {
+  note.tags = [value]
 }
 
 async function batchCreateDrafts() {
