@@ -127,6 +127,7 @@ public class DeckDraftService {
         DeckDraftEntity draft = getExistingDraft(deckId);
         List<SlideStickyNote> normalized = normalizeStickyNotes(stickyNotes);
         draft.setStickyNotesJson(toJson(normalized));
+        draft.setGeneratedDraftsJson(toJson(pruneGeneratedDrafts(draft.getGeneratedDraftsJson(), normalized)));
         draft.setStatus("STICKY_NOTES_READY");
         deckDraftRepository.save(draft);
         return normalized;
@@ -157,6 +158,7 @@ public class DeckDraftService {
                 .filter(note -> !note.slideId().equals(slideId))
                 .toList());
         draft.setStickyNotesJson(toJson(normalized));
+        draft.setGeneratedDraftsJson(toJson(pruneGeneratedDrafts(draft.getGeneratedDraftsJson(), normalized)));
         draft.setStatus("STICKY_NOTES_READY");
         deckDraftRepository.save(draft);
         return normalized;
@@ -818,6 +820,15 @@ public class DeckDraftService {
         } catch (JsonProcessingException exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "生成草稿 JSON 解析失败。");
         }
+    }
+
+    private List<DeckSlideDraftResponse> pruneGeneratedDrafts(String generatedDraftsJson, List<SlideStickyNote> stickyNotes) {
+        List<String> activeSlideIds = stickyNotes.stream()
+                .map(SlideStickyNote::slideId)
+                .toList();
+        return generatedDraftsFromJson(generatedDraftsJson).stream()
+                .filter(draft -> activeSlideIds.contains(draft.slideId()))
+                .toList();
     }
 
     private record SearchQueryPlan(List<String> queries) {

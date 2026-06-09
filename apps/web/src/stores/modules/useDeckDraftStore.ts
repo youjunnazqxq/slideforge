@@ -141,6 +141,7 @@ export const useDeckDraftStore = defineStore(
       await runWithLoading('outline', async () => {
         const response = await saveDeckStickyNotes(id, stickyNotes.value)
         stickyNotes.value = response.data
+        pruneLocalGeneratedDrafts()
       })
     }
 
@@ -166,6 +167,7 @@ export const useDeckDraftStore = defineStore(
       await runWithLoading('outline', async () => {
         const response = await deleteDeckStickyNote(id, slideId)
         stickyNotes.value = response.data
+        pruneLocalGeneratedDrafts()
       })
     }
 
@@ -355,6 +357,14 @@ export const useDeckDraftStore = defineStore(
       }
 
       return nextDrafts.sort((first, second) => first.order - second.order)
+    }
+
+    function pruneLocalGeneratedDrafts() {
+      const activeSlideIds = new Set(stickyNotes.value.map((note) => note.slideId))
+      generatedDrafts.value = generatedDrafts.value.filter((draft) => activeSlideIds.has(draft.slideId))
+      slidePreviews.value = Object.fromEntries(
+        Object.entries(slidePreviews.value).filter(([slideId]) => activeSlideIds.has(slideId)),
+      )
     }
 
     return {
