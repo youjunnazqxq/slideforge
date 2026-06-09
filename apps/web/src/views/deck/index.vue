@@ -73,6 +73,25 @@
         <span v-if="failedCount">Failed {{ failedCount }}</span>
       </section>
 
+      <section v-if="deckStore.generatedDrafts.length" class="deck-progress">
+        <article>
+          <strong>{{ pagePlanReadyCount }}</strong>
+          <span>Page Plans</span>
+        </article>
+        <article>
+          <strong>{{ visualSpecReadyCount }}</strong>
+          <span>Bento Specs</span>
+        </article>
+        <article>
+          <strong>{{ svgReadyCount }}</strong>
+          <span>SVG Ready</span>
+        </article>
+        <article :class="{ 'is-danger': failedCount }">
+          <strong>{{ failedCount }}</strong>
+          <span>Failed</span>
+        </article>
+      </section>
+
       <section v-if="deckStore.workflowRuns.length" class="deck-trace">
         <header>
           <p>Prompt Trace</p>
@@ -257,6 +276,15 @@ const draggingSlideId = ref('')
 
 const svgReadyCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'SVG_READY').length)
 const failedCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'FAILED').length)
+const pagePlanReadyCount = computed(
+  () =>
+    deckStore.generatedDrafts.filter((draft) =>
+      ['PAGE_PLAN_READY', 'VISUAL_SPEC_READY', 'SVG_READY'].includes(draft.status),
+    ).length,
+)
+const visualSpecReadyCount = computed(
+  () => deckStore.generatedDrafts.filter((draft) => ['VISUAL_SPEC_READY', 'SVG_READY'].includes(draft.status)).length,
+)
 
 const visibleStickyNotes = computed(() => {
   if (deckStore.stickyNotes.length) {
@@ -419,6 +447,40 @@ async function downloadDeckPptx() {
   margin-top: auto;
   color: #6b7280;
   font-size: 12px;
+}
+
+.deck-progress {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+
+  article {
+    display: grid;
+    gap: 3px;
+    padding: 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 18px;
+  }
+
+  span {
+    color: #6b7280;
+    font-size: 11px;
+  }
+
+  .is-danger {
+    border-color: #fecaca;
+    background: #fef2f2;
+
+    strong {
+      color: #b91c1c;
+    }
+  }
 }
 
 .deck-trace {
