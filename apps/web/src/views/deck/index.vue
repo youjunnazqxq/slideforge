@@ -125,9 +125,17 @@
           <el-button size="small" text @click="runAction(deckStore.loadWorkflowRuns)">Refresh</el-button>
         </header>
         <article v-for="run in deckStore.workflowRuns.slice(0, 6)" :key="run.id">
-          <strong>{{ run.stage }}</strong>
-          <span>{{ run.promptKey || 'manual' }}</span>
+          <button type="button" @click="toggleTrace(run.id)">
+            <strong>{{ run.stage }}</strong>
+            <span>{{ run.promptKey || 'manual' }}</span>
+          </button>
           <em>{{ run.status }} / {{ run.durationMs || 0 }}ms</em>
+          <div v-if="activeTraceId === run.id" class="deck-trace__detail">
+            <label>Prompt</label>
+            <pre>{{ run.inputPreview || 'No prompt preview' }}</pre>
+            <label>Output</label>
+            <pre>{{ run.outputPreview || run.errorMessage || 'No output preview' }}</pre>
+          </div>
         </article>
       </section>
     </aside>
@@ -330,6 +338,7 @@ const creatingSlideId = ref('')
 const draggingSlideId = ref('')
 const fullPipelineRunning = ref(false)
 const fullPipelineStep = ref('')
+const activeTraceId = ref('')
 const pageTypeOptions = ['cover', 'agenda', 'section', 'content', 'summary']
 
 const svgReadyCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'SVG_READY').length)
@@ -398,6 +407,10 @@ function validationWarningCount(slideId: string) {
 
 function validationWarnings(slideId: string) {
   return deckStore.slideValidationWarnings[slideId] ?? []
+}
+
+function toggleTrace(runId: string) {
+  activeTraceId.value = activeTraceId.value === runId ? '' : runId
 }
 
 async function batchCreateDrafts() {
@@ -630,6 +643,16 @@ async function downloadDeckPptx() {
     background: #ffffff;
   }
 
+  button {
+    display: grid;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+
   strong,
   span {
     display: block;
@@ -649,6 +672,33 @@ async function downloadDeckPptx() {
 
   em {
     grid-column: 1 / -1;
+  }
+}
+
+.deck-trace__detail {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 6px;
+  min-width: 0;
+
+  label {
+    color: #374151;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  pre {
+    max-height: 120px;
+    overflow: auto;
+    margin: 0;
+    padding: 8px;
+    border-radius: 6px;
+    background: #f9fafb;
+    color: #111827;
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 }
 
