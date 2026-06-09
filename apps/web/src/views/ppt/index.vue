@@ -210,6 +210,53 @@
             </div>
             <div class="stage-actions">
               <el-button
+                :loading="draftStore.loadingStage === 'visualSpec'"
+                type="primary"
+                @click="runAction(draftStore.generateVisualSpec)"
+              >
+                生成视觉设计
+              </el-button>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="draftStore.currentStage === 'visualSpec'">
+          <div class="visual-spec-view">
+            <div>
+              <p class="section-kicker">Bento Grid Visual Spec</p>
+              <h3>{{ draftStore.visualSpec.canvas.width }} x {{ draftStore.visualSpec.canvas.height }}</h3>
+              <div class="theme-swatches">
+                <span
+                  v-for="(color, name) in draftStore.visualSpec.theme"
+                  :key="name"
+                  :style="{ background: color }"
+                  :title="`${name}: ${color}`"
+                />
+              </div>
+            </div>
+
+            <div class="visual-canvas">
+              <article
+                v-for="card in draftStore.visualSpec.cards"
+                :key="card.id"
+                :class="{ 'is-primary': card.priority === 'primary' }"
+                :style="cardStyle(card)"
+              >
+                <strong>{{ card.id }}</strong>
+                <span>{{ card.blockId }}</span>
+              </article>
+            </div>
+
+            <div class="visual-card-list">
+              <article v-for="card in draftStore.visualSpec.cards" :key="card.id">
+                <strong>{{ card.id }}</strong>
+                <span>{{ card.blockId }} / {{ card.priority }}</span>
+                <p>x {{ card.x }} · y {{ card.y }} · {{ card.w }} x {{ card.h }}</p>
+              </article>
+            </div>
+
+            <div class="stage-actions">
+              <el-button
                 :loading="draftStore.loadingStage === 'svg'"
                 type="primary"
                 @click="runAction(draftStore.regenerateSvg)"
@@ -327,9 +374,10 @@ import {
   Refresh,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import type { CSSProperties } from 'vue'
 
 import { useOnePageDraftStore } from '@/stores'
-import type { RequirementBrief } from '@/stores'
+import type { RequirementBrief, VisualSpec } from '@/stores'
 
 const draftStore = useOnePageDraftStore()
 
@@ -379,6 +427,15 @@ async function runAction(action: () => Promise<unknown>) {
     await action()
   } catch {
     ElMessage.error(draftStore.errorMessage || '操作失败')
+  }
+}
+
+function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
+  return {
+    left: `${(card.x / 1280) * 100}%`,
+    top: `${(card.y / 720) * 100}%`,
+    width: `${(card.w / 1280) * 100}%`,
+    height: `${(card.h / 720) * 100}%`,
   }
 }
 </script>
@@ -592,7 +649,8 @@ async function runAction(action: () => Promise<unknown>) {
 
 .consult-view,
 .research-view,
-.page-plan-view {
+.page-plan-view,
+.visual-spec-view {
   display: grid;
   gap: 16px;
 }
@@ -656,7 +714,8 @@ async function runAction(action: () => Promise<unknown>) {
   font-weight: 800;
 }
 
-.research-view h3 {
+.research-view h3,
+.visual-spec-view h3 {
   max-width: 840px;
   margin: 4px 0 0;
   color: #111827;
@@ -665,7 +724,8 @@ async function runAction(action: () => Promise<unknown>) {
 }
 
 .research-list,
-.plan-blocks {
+.plan-blocks,
+.visual-card-list {
   display: grid;
   gap: 12px;
 }
@@ -725,6 +785,91 @@ async function runAction(action: () => Promise<unknown>) {
       margin: 0;
       color: #4b5563;
       line-height: 1.6;
+    }
+  }
+}
+
+.theme-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+
+  span {
+    width: 34px;
+    height: 34px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+  }
+}
+
+.visual-canvas {
+  position: relative;
+  overflow: hidden;
+  width: min(100%, 920px);
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  aspect-ratio: 16 / 9;
+  background:
+    linear-gradient(rgba(17, 24, 39, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 24, 39, 0.04) 1px, transparent 1px),
+    #f9fafb;
+  background-size: 40px 40px;
+
+  article {
+    position: absolute;
+    display: grid;
+    align-content: start;
+    gap: 4px;
+    overflow: hidden;
+    padding: 12px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: rgba(239, 246, 255, 0.88);
+    color: #1e3a8a;
+    font-size: 12px;
+
+    &.is-primary {
+      border-color: #93c5fd;
+      background: rgba(219, 234, 254, 0.95);
+      font-size: 14px;
+    }
+
+    strong,
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+.visual-card-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  article {
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+
+    strong,
+    span,
+    p {
+      display: block;
+      margin: 0;
+    }
+
+    span {
+      margin: 6px 0;
+      color: #2563eb;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    p {
+      color: #6b7280;
+      font-size: 13px;
     }
   }
 }
@@ -914,7 +1059,8 @@ async function runAction(action: () => Promise<unknown>) {
   }
 
   .form-grid,
-  .plan-blocks {
+  .plan-blocks,
+  .visual-card-list {
     grid-template-columns: 1fr;
   }
 

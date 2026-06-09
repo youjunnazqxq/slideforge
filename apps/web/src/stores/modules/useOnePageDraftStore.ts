@@ -9,14 +9,16 @@ import {
   generatePagePlan as requestGeneratePagePlan,
   generateResearch as requestGenerateResearch,
   generateSvg as requestGenerateSvg,
+  generateVisualSpec as requestGenerateVisualSpec,
   getOnePageDraft,
   type OnePageDraftResponse,
   type PagePlanResponse,
   type RequirementBriefResponse,
   type ResearchPackResponse,
+  type VisualSpecResponse,
 } from '@/api/modules/onePage'
 
-export type WorkflowStage = 'consult' | 'brief' | 'research' | 'pagePlan' | 'svg'
+export type WorkflowStage = 'consult' | 'brief' | 'research' | 'pagePlan' | 'visualSpec' | 'svg'
 export type WorkflowStatus = 'pending' | 'running' | 'done' | 'failed'
 export type LoadingStage = WorkflowStage | 'create' | ''
 
@@ -60,6 +62,12 @@ export interface PagePlan {
   contentBlocks: PagePlanBlock[]
 }
 
+export interface VisualSpec {
+  canvas: VisualSpecResponse['canvas']
+  theme: VisualSpecResponse['theme']
+  cards: VisualSpecResponse['cards']
+}
+
 const defaultSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
   <rect width="1280" height="720" fill="#F7F8FA"/>
   <rect x="56" y="56" width="1168" height="608" rx="24" fill="#FFFFFF" stroke="#E5E7EB"/>
@@ -101,6 +109,7 @@ export const useOnePageDraftStore = defineStore(
       { key: 'brief', label: '生成 brief', status: 'done' },
       { key: 'research', label: '资料整理', status: 'done' },
       { key: 'pagePlan', label: '页面策划', status: 'done' },
+      { key: 'visualSpec', label: '视觉设计', status: 'done' },
       { key: 'svg', label: 'SVG 生成', status: 'done' },
     ])
 
@@ -152,6 +161,28 @@ export const useOnePageDraftStore = defineStore(
           title: '主要风险',
           content: '生成质量不稳定、SVG 易重叠、资料来源不充分。',
         },
+      ],
+    })
+
+    const visualSpec = reactive<VisualSpec>({
+      canvas: {
+        width: 1280,
+        height: 720,
+        viewBox: '0 0 1280 720',
+      },
+      theme: {
+        background: '#F7F8FA',
+        primary: '#2563EB',
+        text: '#111827',
+        muted: '#6B7280',
+        card: '#FFFFFF',
+        border: '#E5E7EB',
+      },
+      cards: [
+        { id: 'hero', blockId: 'primary', x: 64, y: 112, w: 560, h: 480, priority: 'primary' },
+        { id: 'byok', blockId: 'byok', x: 656, y: 112, w: 560, h: 145, priority: 'secondary' },
+        { id: 'risk', blockId: 'risk', x: 656, y: 287, w: 560, h: 145, priority: 'secondary' },
+        { id: 'next', blockId: 'next', x: 656, y: 462, w: 560, h: 130, priority: 'secondary' },
       ],
     })
 
@@ -245,6 +276,17 @@ export const useOnePageDraftStore = defineStore(
       })
     }
 
+    async function generateVisualSpec() {
+      const id = await ensureDraft()
+
+      await runWithLoading('visualSpec', async () => {
+        const response = await requestGenerateVisualSpec(id)
+        applyVisualSpec(response.data)
+        markStep('visualSpec', 'done')
+        setStage('visualSpec')
+      })
+    }
+
     async function regenerateSvg() {
       const id = await ensureDraft()
 
@@ -321,6 +363,11 @@ export const useOnePageDraftStore = defineStore(
         markStep('pagePlan', 'done')
       }
 
+      if (draft.visualSpec) {
+        applyVisualSpec(draft.visualSpec)
+        markStep('visualSpec', 'done')
+      }
+
       if (draft.svgContent) {
         svgContent.value = draft.svgContent
         validationWarnings.value = draft.validationReport?.warnings ?? []
@@ -362,6 +409,12 @@ export const useOnePageDraftStore = defineStore(
       }))
     }
 
+    function applyVisualSpec(nextVisualSpec: VisualSpecResponse) {
+      visualSpec.canvas = nextVisualSpec.canvas
+      visualSpec.theme = nextVisualSpec.theme
+      visualSpec.cards = nextVisualSpec.cards
+    }
+
     return {
       activeStep,
       assistantMessage,
@@ -379,11 +432,13 @@ export const useOnePageDraftStore = defineStore(
       status,
       svgContent,
       userPrompt,
+      visualSpec,
       consult,
       createDraft,
       generateBrief,
       generatePagePlan,
       generateResearch,
+      generateVisualSpec,
       exportPptx,
       loadDraft,
       regenerateSvg,
@@ -406,6 +461,7 @@ export const useOnePageDraftStore = defineStore(
         'researchPack',
         'researchMode',
         'pagePlan',
+        'visualSpec',
         'svgContent',
         'validationWarnings',
       ],

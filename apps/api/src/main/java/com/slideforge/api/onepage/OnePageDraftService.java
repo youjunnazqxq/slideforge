@@ -149,7 +149,6 @@ public class OnePageDraftService {
         PagePlan pagePlan = parseModelJsonWithRepair(response.content(), PagePlan.class);
 
         draft.setPagePlanJson(toJson(pagePlan));
-        draft.setVisualSpecJson(toJson(generateVisualSpec()));
         draft.setStatus("PAGE_PLAN_READY");
         onePageDraftRepository.save(draft);
         recordWorkflow(draft, "pagePlan", prompt, toJson(pagePlan), start, null);
@@ -159,10 +158,29 @@ public class OnePageDraftService {
     public PagePlan updatePagePlan(String draftId, PagePlan pagePlan) {
         OnePageDraftEntity draft = getExistingDraft(draftId);
         draft.setPagePlanJson(toJson(pagePlan));
-        draft.setVisualSpecJson(toJson(generateVisualSpec()));
         draft.setStatus("PAGE_PLAN_READY");
         onePageDraftRepository.save(draft);
         return pagePlan;
+    }
+
+    public VisualSpec generateVisualSpec(String draftId) {
+        long start = System.currentTimeMillis();
+        OnePageDraftEntity draft = getExistingDraft(draftId);
+
+        if (draft.getPagePlanJson() == null) {
+            generatePagePlan(draftId);
+            draft = getExistingDraft(draftId);
+        }
+
+        RenderedPrompt prompt = onePagePromptService.visualSpec(draft.getPagePlanJson());
+        AiChatResponse response = callPrompt(prompt);
+        VisualSpec visualSpec = normalizeVisualSpec(parseModelJsonWithRepair(response.content(), VisualSpec.class));
+
+        draft.setVisualSpecJson(toJson(visualSpec));
+        draft.setStatus("VISUAL_SPEC_READY");
+        onePageDraftRepository.save(draft);
+        recordWorkflow(draft, "visualSpec", prompt, toJson(visualSpec), start, null);
+        return visualSpec;
     }
 
     public SvgGenerateResponse generateSvg(String draftId) {
@@ -174,7 +192,12 @@ public class OnePageDraftService {
             draft = getExistingDraft(draftId);
         }
 
-        RenderedPrompt prompt = onePagePromptService.svg(draft.getPagePlanJson());
+        if (draft.getVisualSpecJson() == null) {
+            generateVisualSpec(draftId);
+            draft = getExistingDraft(draftId);
+        }
+
+        RenderedPrompt prompt = onePagePromptService.svg(draft.getPagePlanJson(), draft.getVisualSpecJson());
         AiChatResponse response = callPrompt(prompt);
         String rawSvg = extractSvg(response.content());
         String sanitizedSvg = svgValidationService.sanitize(rawSvg);
@@ -280,7 +303,49 @@ public class OnePageDraftService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "草稿不存在。"));
     }
 
-    private VisualSpec generateVisualSpec() {
+    private VisualSpec normalizeVisualSpec(VisualSpec visualSpec) {
+        if (visualSpec == null) {
+            return defaultVisualSpec();
+        }
+
+        VisualSpec.Theme theme = visualSpec.theme() == null
+                ? defaultVisualSpec().theme()
+                : visualSpec.theme();
+        List<VisualSpec.Card> cards = visualSpec.cards() == null || visualSpec.cards().isEmpty()
+                ? defaultVisualSpec().cards()
+                : visualSpec.cards().stream()
+                        .map(this::normalizeCard)
+                        .toList();
+
+        return new VisualSpec(
+                new VisualSpec.Canvas(1280, 720, "0 0 1280 720"),
+                theme,
+                cards
+        );
+    }
+
+    private VisualSpec.Card normalizeCard(VisualSpec.Card card) {
+        int x = clamp(card.x(), 0, 1200);
+        int y = clamp(card.y(), 0, 660);
+        int w = clamp(card.w(), 80, 1280 - x);
+        int h = clamp(card.h(), 60, 720 - y);
+
+        return new VisualSpec.Card(
+                card.id(),
+                card.blockId(),
+                x,
+                y,
+                w,
+                h,
+                card.priority()
+        );
+    }
+
+    private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(value, max));
+    }
+
+    private VisualSpec defaultVisualSpec() {
         return new VisualSpec(
                 new VisualSpec.Canvas(1280, 720, "0 0 1280 720"),
                 new VisualSpec.Theme("#F7F8FA", "#2563EB", "#111827", "#6B7280", "#FFFFFF", "#E5E7EB"),

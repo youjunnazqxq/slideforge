@@ -133,6 +133,45 @@ public class PromptTemplateRegistry {
                     "json",
                     4096
             ),
+            PromptKeys.VISUAL_SPEC_GENERATE,
+            new PromptTemplate(
+                    PromptKeys.VISUAL_SPEC_GENERATE,
+                    "v1",
+                    COMMON_SYSTEM + """
+                            你是顶级 PPT 视觉设计师，负责把页面策划稿转换为 Bento Grid 视觉规格。
+                            你只设计画布、主题色和卡片排布，不生成 SVG 代码。
+                            视觉规格必须服务内容层级：primary 内容最大，supporting/risk/next 内容较小，所有卡片必须在 1280x720 内。
+                            """,
+                    """
+                            请基于 pagePlan 生成一份 16:9 Bento Grid visualSpec。
+                            要求：
+                            - canvas 固定为 width=1280, height=720, viewBox="0 0 1280 720"。
+                            - cards 必须覆盖 pagePlan.contentBlocks 中的主要 block id。
+                            - 卡片坐标和尺寸使用整数，x/y/w/h 不能超出画布。
+                            - 使用专业克制的非单色主题，避免整页只有一种蓝/紫/灰。
+
+                            pagePlan JSON：
+                            {{pagePlanJson}}
+
+                            JSON 字段必须完全如下：
+                            {
+                              "canvas": {"width": 1280, "height": 720, "viewBox": "0 0 1280 720"},
+                              "theme": {
+                                "background": "#F7F8FA",
+                                "primary": "#2563EB",
+                                "text": "#111827",
+                                "muted": "#6B7280",
+                                "card": "#FFFFFF",
+                                "border": "#E5E7EB"
+                              },
+                              "cards": [
+                                {"id": "hero", "blockId": "primary", "x": 64, "y": 96, "w": 560, "h": 520, "priority": "primary"}
+                              ]
+                            }
+                            """,
+                    "json",
+                    3072
+            ),
             PromptKeys.SVG_GENERATE,
             new PromptTemplate(
                     PromptKeys.SVG_GENERATE,
@@ -142,7 +181,7 @@ public class PromptTemplateRegistry {
                             严禁 script、foreignObject、外链图片、外链字体和外部 CSS。
                             """,
                     """
-                            请根据 pagePlan 生成一张 16:9、viewBox="0 0 1280 720" 的单页 PPT SVG。
+                            请根据 pagePlan 和 visualSpec 生成一张 16:9、viewBox="0 0 1280 720" 的单页 PPT SVG。
                             严格要求：
                             - 只返回 <svg>...</svg>。
                             - 使用专业克制的 Bento Grid 布局。
@@ -151,6 +190,9 @@ public class PromptTemplateRegistry {
 
                             pagePlan JSON：
                             {{pagePlanJson}}
+
+                            visualSpec JSON：
+                            {{visualSpecJson}}
                             """,
                     "text",
                     4096

@@ -11,6 +11,7 @@ import com.slideforge.api.onepage.dto.PagePlan;
 import com.slideforge.api.onepage.dto.RequirementBrief;
 import com.slideforge.api.onepage.dto.ResearchPack;
 import com.slideforge.api.onepage.dto.SvgGenerateResponse;
+import com.slideforge.api.onepage.dto.VisualSpec;
 import jakarta.validation.Valid;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -92,6 +93,11 @@ public class OnePageDraftController {
             @RequestBody PagePlan pagePlan
     ) {
         return ApiResponse.success(onePageDraftService.updatePagePlan(draftId, pagePlan));
+    }
+
+    @PostMapping("/{draftId}/visual-spec")
+    public ApiResponse<VisualSpec> generateVisualSpec(@PathVariable String draftId) {
+        return ApiResponse.success(onePageDraftService.generateVisualSpec(draftId));
     }
 
     @PostMapping("/{draftId}/svg")

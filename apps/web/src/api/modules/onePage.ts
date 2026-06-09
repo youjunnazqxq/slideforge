@@ -71,6 +71,31 @@ export interface PagePlanResponse {
   visualStyle: string
 }
 
+export interface VisualSpecResponse {
+  canvas: {
+    width: number
+    height: number
+    viewBox: string
+  }
+  theme: {
+    background: string
+    primary: string
+    text: string
+    muted: string
+    card: string
+    border: string
+  }
+  cards: Array<{
+    id: string
+    blockId: string
+    x: number
+    y: number
+    w: number
+    h: number
+    priority: string
+  }>
+}
+
 export interface ValidationReportResponse {
   valid: boolean
   warnings: string[]
@@ -88,6 +113,7 @@ export interface OnePageDraftResponse {
   requirementBrief?: RequirementBriefResponse
   researchPack?: ResearchPackResponse
   pagePlan?: PagePlanResponse
+  visualSpec?: VisualSpecResponse
   svgContent?: string
   validationReport?: ValidationReportResponse
 }
@@ -116,6 +142,10 @@ export function generateResearch(draftId: string, data?: GenerateResearchRequest
 
 export function generatePagePlan(draftId: string) {
   return request.post<PagePlanResponse>(`${servicePrefix.onePage}/drafts/${draftId}/page-plan`)
+}
+
+export function generateVisualSpec(draftId: string) {
+  return request.post<VisualSpecResponse>(`${servicePrefix.onePage}/drafts/${draftId}/visual-spec`)
 }
 
 export function generateSvg(draftId: string) {

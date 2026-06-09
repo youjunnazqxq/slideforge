@@ -47,8 +47,15 @@ public class OnePagePromptService {
         ));
     }
 
-    public RenderedPrompt svg(String pagePlanJson) {
-        return render(PromptKeys.SVG_GENERATE, Map.of("pagePlanJson", pagePlanJson));
+    public RenderedPrompt visualSpec(String pagePlanJson) {
+        return render(PromptKeys.VISUAL_SPEC_GENERATE, Map.of("pagePlanJson", pagePlanJson));
+    }
+
+    public RenderedPrompt svg(String pagePlanJson, String visualSpecJson) {
+        return render(PromptKeys.SVG_GENERATE, Map.of(
+                "pagePlanJson", pagePlanJson,
+                "visualSpecJson", visualSpecJson
+        ));
     }
 
     public RenderedPrompt jsonRepair(String brokenContent) {
