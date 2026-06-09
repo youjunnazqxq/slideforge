@@ -1,5 +1,5 @@
 <template>
-  <section class="deck-page">
+  <section class="deck-page" :class="{ 'deck-page--right-collapsed': rightPanelCollapsed }">
     <aside class="deck-sidebar">
       <header>
         <p>Full Deck</p>
@@ -86,58 +86,6 @@
         </template>
       </el-alert>
 
-      <section v-if="deckStore.assistantMessage" class="deck-consult">
-        <p>AI Consultant</p>
-        <span>{{ deckStore.assistantMessage }}</span>
-      </section>
-
-      <section class="deck-meta">
-        <span>{{ deckStore.status }}</span>
-        <span v-if="deckStore.deckId">Deck {{ deckStore.deckId.slice(0, 8) }}</span>
-        <span v-if="fullPipelineStep">Flow {{ fullPipelineStep }}</span>
-        <span v-if="deckStore.generatedDrafts.length">已生成 {{ deckStore.generatedDrafts.length }} 个单页草稿</span>
-        <span v-if="svgReadyCount">SVG ready {{ svgReadyCount }} / {{ deckStore.generatedDrafts.length }}</span>
-        <span v-if="failedCount">Failed {{ failedCount }}</span>
-      </section>
-
-      <section v-if="deckStore.generatedDrafts.length" class="deck-progress">
-        <article>
-          <strong>{{ pagePlanReadyCount }}</strong>
-          <span>Page Plans</span>
-        </article>
-        <article>
-          <strong>{{ visualSpecReadyCount }}</strong>
-          <span>Bento Specs</span>
-        </article>
-        <article>
-          <strong>{{ svgReadyCount }}</strong>
-          <span>SVG Ready</span>
-        </article>
-        <article :class="{ 'is-danger': failedCount }">
-          <strong>{{ failedCount }}</strong>
-          <span>Failed</span>
-        </article>
-      </section>
-
-      <section v-if="deckStore.workflowRuns.length" class="deck-trace">
-        <header>
-          <p>Prompt Trace</p>
-          <el-button size="small" text @click="runAction(deckStore.loadWorkflowRuns)">Refresh</el-button>
-        </header>
-        <article v-for="run in deckStore.workflowRuns.slice(0, 6)" :key="run.id">
-          <button type="button" @click="toggleTrace(run.id)">
-            <strong>{{ run.stage }}</strong>
-            <span>{{ run.promptKey || 'manual' }}</span>
-          </button>
-          <em>{{ run.status }} / {{ run.durationMs || 0 }}ms</em>
-          <div v-if="activeTraceId === run.id" class="deck-trace__detail">
-            <label>Prompt</label>
-            <pre>{{ run.inputPreview || 'No prompt preview' }}</pre>
-            <label>Output</label>
-            <pre>{{ run.outputPreview || run.errorMessage || 'No output preview' }}</pre>
-          </div>
-        </article>
-      </section>
     </aside>
 
     <main class="deck-main">
@@ -319,10 +267,75 @@
         </div>
       </section>
     </main>
+
+    <aside class="deck-agent-panel">
+      <button class="deck-agent-panel__toggle" type="button" @click="rightPanelCollapsed = !rightPanelCollapsed">
+        <el-icon>
+          <ArrowLeft v-if="rightPanelCollapsed" />
+          <ArrowRight v-else />
+        </el-icon>
+      </button>
+
+      <template v-if="!rightPanelCollapsed">
+        <section v-if="deckStore.assistantMessage" class="deck-consult">
+          <p>AI Consultant</p>
+          <span>{{ deckStore.assistantMessage }}</span>
+        </section>
+
+        <section class="deck-meta">
+          <span>{{ deckStore.status }}</span>
+          <span v-if="deckStore.deckId">Deck {{ deckStore.deckId.slice(0, 8) }}</span>
+          <span v-if="fullPipelineStep">Flow {{ fullPipelineStep }}</span>
+          <span v-if="deckStore.generatedDrafts.length">已生成 {{ deckStore.generatedDrafts.length }} 个单页草稿</span>
+          <span v-if="svgReadyCount">SVG ready {{ svgReadyCount }} / {{ deckStore.generatedDrafts.length }}</span>
+          <span v-if="failedCount">Failed {{ failedCount }}</span>
+        </section>
+
+        <section v-if="deckStore.generatedDrafts.length" class="deck-progress">
+          <article>
+            <strong>{{ pagePlanReadyCount }}</strong>
+            <span>Page Plans</span>
+          </article>
+          <article>
+            <strong>{{ visualSpecReadyCount }}</strong>
+            <span>Bento Specs</span>
+          </article>
+          <article>
+            <strong>{{ svgReadyCount }}</strong>
+            <span>SVG Ready</span>
+          </article>
+          <article :class="{ 'is-danger': failedCount }">
+            <strong>{{ failedCount }}</strong>
+            <span>Failed</span>
+          </article>
+        </section>
+
+        <section v-if="deckStore.workflowRuns.length" class="deck-trace">
+          <header>
+            <p>Prompt Trace</p>
+            <el-button size="small" text @click="runAction(deckStore.loadWorkflowRuns)">Refresh</el-button>
+          </header>
+          <article v-for="run in deckStore.workflowRuns.slice(0, 6)" :key="run.id">
+            <button type="button" @click="toggleTrace(run.id)">
+              <strong>{{ run.stage }}</strong>
+              <span>{{ run.promptKey || 'manual' }}</span>
+            </button>
+            <em>{{ run.status }} / {{ run.durationMs || 0 }}ms</em>
+            <div v-if="activeTraceId === run.id" class="deck-trace__detail">
+              <label>Prompt</label>
+              <pre>{{ run.inputPreview || 'No prompt preview' }}</pre>
+              <label>Output</label>
+              <pre>{{ run.outputPreview || run.errorMessage || 'No output preview' }}</pre>
+            </div>
+          </article>
+        </section>
+      </template>
+    </aside>
   </section>
 </template>
 
 <script setup lang="ts">
+import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -339,6 +352,7 @@ const draggingSlideId = ref('')
 const fullPipelineRunning = ref(false)
 const fullPipelineStep = ref('')
 const activeTraceId = ref('')
+const rightPanelCollapsed = ref(false)
 const pageTypeOptions = ['cover', 'agenda', 'section', 'content', 'summary']
 
 const svgReadyCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'SVG_READY').length)
@@ -499,12 +513,17 @@ async function downloadDeckPptx() {
 .deck-page {
   display: grid;
   min-height: calc(100vh - 128px);
-  grid-template-columns: 340px minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr) 320px;
   gap: 14px;
 }
 
+.deck-page--right-collapsed {
+  grid-template-columns: 320px minmax(0, 1fr) 48px;
+}
+
 .deck-sidebar,
-.deck-main {
+.deck-main,
+.deck-agent-panel {
   min-height: 0;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -534,6 +553,31 @@ async function downloadDeckPptx() {
   }
 }
 
+.deck-agent-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 14px;
+}
+
+.deck-agent-panel__toggle {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  justify-self: end;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+  }
+}
+
 .deck-actions,
 .sticky-note__actions {
   display: flex;
@@ -544,7 +588,6 @@ async function downloadDeckPptx() {
 .deck-meta {
   display: grid;
   gap: 6px;
-  margin-top: auto;
   color: #6b7280;
   font-size: 12px;
 }
