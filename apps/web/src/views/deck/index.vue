@@ -15,11 +15,7 @@
       />
 
       <div class="deck-actions">
-        <el-button
-          :loading="deckStore.loadingStage === 'create'"
-          plain
-          @click="runAction(deckStore.createDraft)"
-        >
+        <el-button :loading="deckStore.loadingStage === 'create'" plain @click="runAction(deckStore.createDraft)">
           创建草稿
         </el-button>
         <el-button
@@ -28,6 +24,12 @@
           @click="runAction(deckStore.generateDeckOutline)"
         >
           生成大纲
+        </el-button>
+        <el-button :loading="deckStore.loadingStage === 'outline'" plain @click="runAction(deckStore.addStickyNote)">
+          添加页面
+        </el-button>
+        <el-button :loading="deckStore.loadingStage === 'outline'" plain @click="runAction(deckStore.saveStickyNotes)">
+          保存编排
         </el-button>
       </div>
 
@@ -50,7 +52,7 @@
           <p>Deck Outline</p>
           <h1>{{ deckStore.outline.title }}</h1>
         </div>
-        <el-tag>{{ deckStore.outline.slides.length }} pages</el-tag>
+        <el-tag>{{ visibleStickyNotes.length }} pages</el-tag>
       </header>
 
       <section class="thesis-band">
@@ -79,17 +81,39 @@
               <span>{{ note.order }}</span>
               <el-tag size="small">{{ note.tags?.[0] || 'slide' }}</el-tag>
             </div>
-            <p>{{ note.sectionTitle || '未分组' }}</p>
-            <h3>{{ note.title }}</h3>
-            <span>{{ note.message }}</span>
-            <el-button
-              :loading="creatingSlideId === note.slideId"
-              plain
-              size="small"
-              @click="runAction(() => createOnePage(note.slideId))"
-            >
-              生成单页
-            </el-button>
+
+            <el-input v-model="note.sectionTitle" size="small" placeholder="章节" />
+            <el-input v-model="note.title" size="small" placeholder="页面标题" />
+            <el-input
+              v-model="note.message"
+              :rows="3"
+              placeholder="这一页的核心信息"
+              resize="none"
+              type="textarea"
+            />
+
+            <div class="sticky-note__actions">
+              <el-button size="small" plain @click="runAction(() => deckStore.moveStickyNote(note.slideId, -1))">
+                上移
+              </el-button>
+              <el-button size="small" plain @click="runAction(() => deckStore.moveStickyNote(note.slideId, 1))">
+                下移
+              </el-button>
+              <el-button size="small" plain @click="runAction(deckStore.saveStickyNotes)">
+                保存
+              </el-button>
+              <el-button
+                :loading="creatingSlideId === note.slideId"
+                size="small"
+                type="primary"
+                @click="runAction(() => createOnePage(note.slideId))"
+              >
+                生成单页
+              </el-button>
+              <el-button size="small" text type="danger" @click="runAction(() => deckStore.deleteStickyNote(note.slideId))">
+                删除
+              </el-button>
+            </div>
           </article>
         </div>
       </section>
@@ -103,8 +127,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { createOnePageDraftFromDeckSlide } from '@/api/modules/deck'
-import { useDeckDraftStore } from '@/stores'
-import { useOnePageDraftStore } from '@/stores'
+import { useDeckDraftStore, useOnePageDraftStore } from '@/stores'
 
 const deckStore = useDeckDraftStore()
 const onePageStore = useOnePageDraftStore()
@@ -191,7 +214,8 @@ async function createOnePage(slideId: string) {
   }
 }
 
-.deck-actions {
+.deck-actions,
+.sticky-note__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -328,37 +352,11 @@ async function createOnePage(slideId: string) {
 }
 
 .sticky-note {
-  min-height: 178px;
+  display: grid;
+  min-height: 220px;
+  gap: 10px;
   padding: 14px;
   background: #fffbeb;
-
-  p,
-  h3,
-  span {
-    margin: 0;
-  }
-
-  p {
-    margin: 12px 0 8px;
-    color: #92400e;
-    font-size: 12px;
-    font-weight: 700;
-  }
-
-  h3 {
-    margin-bottom: 8px;
-    color: #111827;
-    font-size: 17px;
-  }
-
-  span {
-    color: #4b5563;
-    line-height: 1.55;
-  }
-
-  .el-button {
-    margin-top: 14px;
-  }
 }
 
 .sticky-note__top {

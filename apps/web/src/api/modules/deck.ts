@@ -72,3 +72,15 @@ export function createOnePageDraftFromDeckSlide(deckId: string, slideId: string)
     `${servicePrefix.decks}/${deckId}/slides/${slideId}/one-page-draft`,
   )
 }
+
+export function saveDeckStickyNotes(deckId: string, data: SlideStickyNoteResponse[]) {
+  return request.put<SlideStickyNoteResponse[]>(`${servicePrefix.decks}/${deckId}/sticky-notes`, data)
+}
+
+export function addDeckStickyNote(deckId: string, data: Partial<SlideStickyNoteResponse>) {
+  return request.post<SlideStickyNoteResponse>(`${servicePrefix.decks}/${deckId}/sticky-notes`, data)
+}
+
+export function deleteDeckStickyNote(deckId: string, slideId: string) {
+  return request.delete<SlideStickyNoteResponse[]>(`${servicePrefix.decks}/${deckId}/sticky-notes/${slideId}`)
+}

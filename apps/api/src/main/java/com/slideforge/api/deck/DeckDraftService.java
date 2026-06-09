@@ -82,38 +82,93 @@ public class DeckDraftService {
         return outline;
     }
 
+    public List<SlideStickyNote> saveStickyNotes(String deckId, List<SlideStickyNote> stickyNotes) {
+        DeckDraftEntity draft = getExistingDraft(deckId);
+        List<SlideStickyNote> normalized = normalizeStickyNotes(stickyNotes);
+        draft.setStickyNotesJson(toJson(normalized));
+        draft.setStatus("STICKY_NOTES_READY");
+        deckDraftRepository.save(draft);
+        return normalized;
+    }
+
+    public SlideStickyNote addStickyNote(String deckId, SlideStickyNote stickyNote) {
+        DeckDraftEntity draft = getExistingDraft(deckId);
+        List<SlideStickyNote> notes = new ArrayList<>(stickyNotesFromJson(draft.getStickyNotesJson()));
+        SlideStickyNote note = new SlideStickyNote(
+                hasText(stickyNote.slideId()) ? stickyNote.slideId() : "slide-" + UUID.randomUUID().toString().substring(0, 8),
+                notes.size() + 1,
+                stickyNote.sectionTitle(),
+                stickyNote.title(),
+                stickyNote.message(),
+                "planned",
+                stickyNote.tags() == null ? List.of("content") : stickyNote.tags()
+        );
+        notes.add(note);
+        draft.setStickyNotesJson(toJson(normalizeStickyNotes(notes)));
+        draft.setStatus("STICKY_NOTES_READY");
+        deckDraftRepository.save(draft);
+        return note;
+    }
+
+    public List<SlideStickyNote> deleteStickyNote(String deckId, String slideId) {
+        DeckDraftEntity draft = getExistingDraft(deckId);
+        List<SlideStickyNote> normalized = normalizeStickyNotes(stickyNotesFromJson(draft.getStickyNotesJson()).stream()
+                .filter(note -> !note.slideId().equals(slideId))
+                .toList());
+        draft.setStickyNotesJson(toJson(normalized));
+        draft.setStatus("STICKY_NOTES_READY");
+        deckDraftRepository.save(draft);
+        return normalized;
+    }
+
     public CreateOnePageDraftResponse createOnePageDraftFromSlide(String deckId, String slideId) {
         DeckDraftEntity draft = getExistingDraft(deckId);
         DeckOutline outline = fromJson(draft.getOutlineJson(), DeckOutline.class);
 
-        if (outline == null || outline.slides() == null) {
+        if (outline == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请先生成完整大纲。");
         }
 
-        DeckOutline.Slide slide = outline.slides().stream()
-                .filter(item -> item.id().equals(slideId))
+        SlideStickyNote note = stickyNotesFromJson(draft.getStickyNotesJson()).stream()
+                .filter(item -> item.slideId().equals(slideId))
                 .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "页面不存在。"));
+                .orElseGet(() -> stickyNoteFromOutline(outline, slideId));
 
         String prompt = """
                 请基于完整 PPT 大纲中的单页便利贴，生成这一页的一页 PPT。
 
                 Deck 标题：%s
                 Deck 核心论点：%s
+                当前页章节：%s
                 当前页标题：%s
                 当前页核心信息：%s
-                当前页目的：%s
-                当前页类型：%s
+                当前页标签：%s
                 """.formatted(
                 outline.title(),
                 outline.coreThesis(),
-                slide.title(),
-                slide.message(),
-                slide.purpose(),
-                slide.type()
+                note.sectionTitle(),
+                note.title(),
+                note.message(),
+                String.join(", ", note.tags() == null ? List.of() : note.tags())
         );
 
         return onePageDraftService.createDraft(prompt);
+    }
+
+    private SlideStickyNote stickyNoteFromOutline(DeckOutline outline, String slideId) {
+        DeckOutline.Slide slide = outline.slides().stream()
+                .filter(item -> item.id().equals(slideId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "页面不存在。"));
+        return new SlideStickyNote(
+                slide.id(),
+                1,
+                sectionTitle(outline, slide.sectionId()),
+                slide.title(),
+                slide.message(),
+                "planned",
+                List.of(slide.type())
+        );
     }
 
     private List<SlideStickyNote> toStickyNotes(DeckOutline outline) {
@@ -133,6 +188,25 @@ public class DeckDraftService {
         }
 
         return notes;
+    }
+
+    private List<SlideStickyNote> normalizeStickyNotes(List<SlideStickyNote> stickyNotes) {
+        List<SlideStickyNote> normalized = new ArrayList<>();
+
+        for (int index = 0; index < stickyNotes.size(); index++) {
+            SlideStickyNote note = stickyNotes.get(index);
+            normalized.add(new SlideStickyNote(
+                    note.slideId(),
+                    index + 1,
+                    note.sectionTitle(),
+                    note.title(),
+                    note.message(),
+                    hasText(note.status()) ? note.status() : "planned",
+                    note.tags() == null ? List.of() : note.tags()
+            ));
+        }
+
+        return normalized;
     }
 
     private String sectionTitle(DeckOutline outline, String sectionId) {
@@ -226,5 +300,9 @@ public class DeckDraftService {
                 fromJson(draft.getOutlineJson(), DeckOutline.class),
                 stickyNotesFromJson(draft.getStickyNotesJson())
         );
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

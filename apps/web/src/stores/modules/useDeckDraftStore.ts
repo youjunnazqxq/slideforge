@@ -2,9 +2,12 @@ import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
 import {
+  addDeckStickyNote,
   createDeckDraft,
+  deleteDeckStickyNote,
   generateDeckOutline as requestGenerateDeckOutline,
   getDeckDraft,
+  saveDeckStickyNotes,
   type DeckDraftResponse,
   type DeckOutlineResponse,
   type SlideStickyNoteResponse,
@@ -88,6 +91,61 @@ export const useDeckDraftStore = defineStore(
       })
     }
 
+    async function saveStickyNotes() {
+      const id = await ensureDeck()
+
+      await runWithLoading('outline', async () => {
+        const response = await saveDeckStickyNotes(id, stickyNotes.value)
+        stickyNotes.value = response.data
+      })
+    }
+
+    async function addStickyNote() {
+      const id = await ensureDeck()
+
+      await runWithLoading('outline', async () => {
+        const response = await addDeckStickyNote(id, {
+          sectionTitle: '新增章节',
+          title: '新页面标题',
+          message: '补充这一页要表达的核心信息。',
+          status: 'planned',
+          tags: ['content'],
+        })
+        stickyNotes.value = [...stickyNotes.value, response.data]
+        await saveStickyNotes()
+      })
+    }
+
+    async function deleteStickyNote(slideId: string) {
+      const id = await ensureDeck()
+
+      await runWithLoading('outline', async () => {
+        const response = await deleteDeckStickyNote(id, slideId)
+        stickyNotes.value = response.data
+      })
+    }
+
+    async function moveStickyNote(slideId: string, direction: -1 | 1) {
+      const currentIndex = stickyNotes.value.findIndex((note) => note.slideId === slideId)
+      const nextIndex = currentIndex + direction
+
+      if (currentIndex < 0 || nextIndex < 0 || nextIndex >= stickyNotes.value.length) {
+        return
+      }
+
+      const notes = [...stickyNotes.value]
+      const item = notes[currentIndex]
+
+      if (!item) {
+        return
+      }
+
+      notes.splice(currentIndex, 1)
+      notes.splice(nextIndex, 0, item)
+      stickyNotes.value = notes.map((note, index) => ({ ...note, order: index + 1 }))
+      await saveStickyNotes()
+    }
+
     async function runWithLoading<T>(stage: 'create' | 'outline', task: () => Promise<T>) {
       loadingStage.value = stage
       errorMessage.value = ''
@@ -132,9 +190,13 @@ export const useDeckDraftStore = defineStore(
       outline,
       status,
       stickyNotes,
+      addStickyNote,
       createDraft,
+      deleteStickyNote,
       generateDeckOutline,
       loadDraft,
+      moveStickyNote,
+      saveStickyNotes,
     }
   },
   {
