@@ -7,6 +7,8 @@ import com.slideforge.api.deck.dto.DeckDraftResponse;
 import com.slideforge.api.deck.dto.DeckOutline;
 import com.slideforge.api.deck.dto.DeckSlideDraftResponse;
 import com.slideforge.api.deck.dto.SlideStickyNote;
+import com.slideforge.api.onepage.dto.ConsultRequest;
+import com.slideforge.api.onepage.dto.ConsultResponse;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
 import com.slideforge.api.onepage.dto.GenerateResearchRequest;
 import com.slideforge.api.onepage.dto.ResearchPack;
@@ -41,6 +43,14 @@ public class DeckDraftController {
     @GetMapping("/{deckId}")
     public ApiResponse<DeckDraftResponse> getDraft(@PathVariable String deckId) {
         return ApiResponse.success(deckDraftService.getDraft(deckId));
+    }
+
+    @PostMapping("/{deckId}/consult")
+    public ApiResponse<ConsultResponse> consult(
+            @PathVariable String deckId,
+            @Valid @RequestBody ConsultRequest request
+    ) {
+        return ApiResponse.success(deckDraftService.consult(deckId, request.message()));
     }
 
     @PostMapping("/{deckId}/outline")

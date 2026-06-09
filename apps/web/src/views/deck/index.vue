@@ -18,6 +18,9 @@
         <el-button :loading="deckStore.loadingStage === 'create'" plain @click="runAction(deckStore.createDraft)">
           创建草稿
         </el-button>
+        <el-button :loading="deckStore.loadingStage === 'outline'" plain @click="runAction(deckStore.consultDeck)">
+          Consult
+        </el-button>
         <el-segmented
           v-model="deckStore.researchMode"
           :options="[
@@ -75,6 +78,11 @@
           <el-button size="small" type="warning" @click="router.push('/app/settings')">Open Settings</el-button>
         </template>
       </el-alert>
+
+      <section v-if="deckStore.assistantMessage" class="deck-consult">
+        <p>AI Consultant</p>
+        <span>{{ deckStore.assistantMessage }}</span>
+      </section>
 
       <section class="deck-meta">
         <span>{{ deckStore.status }}</span>
@@ -487,6 +495,32 @@ async function downloadDeckPptx() {
   margin-top: auto;
   color: #6b7280;
   font-size: 12px;
+}
+
+.deck-consult {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #eff6ff;
+
+  p,
+  span {
+    margin: 0;
+  }
+
+  p {
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  span {
+    color: #374151;
+    font-size: 13px;
+    line-height: 1.6;
+  }
 }
 
 .deck-progress {

@@ -15,6 +15,15 @@ export interface CreateOnePageDraftFromDeckResponse {
   status: string
 }
 
+export interface DeckConsultRequest {
+  message: string
+}
+
+export interface DeckConsultResponse {
+  message: string
+  readyForBrief: boolean
+}
+
 export interface DeckSlideDraftResponse {
   slideId: string
   order: number
@@ -100,6 +109,10 @@ export function generateDeckOutline(deckId: string) {
 
 export function generateDeckResearch(deckId: string, data?: { mode: 'model-only' | 'search-assisted' }) {
   return request.post<DeckResearchPackResponse>(`${servicePrefix.decks}/${deckId}/research`, data)
+}
+
+export function consultDeckDraft(deckId: string, data: DeckConsultRequest) {
+  return request.post<DeckConsultResponse>(`${servicePrefix.decks}/${deckId}/consult`, data)
 }
 
 export function createOnePageDraftFromDeckSlide(deckId: string, slideId: string) {

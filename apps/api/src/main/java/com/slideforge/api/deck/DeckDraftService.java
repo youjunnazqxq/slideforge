@@ -13,6 +13,7 @@ import com.slideforge.api.deck.dto.DeckSlideDraftResponse;
 import com.slideforge.api.deck.dto.SlideStickyNote;
 import com.slideforge.api.onepage.OnePageDraftService;
 import com.slideforge.api.onepage.OnePagePromptService;
+import com.slideforge.api.onepage.dto.ConsultResponse;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
 import com.slideforge.api.onepage.dto.ResearchPack;
 import com.slideforge.api.research.SearchClient;
@@ -69,6 +70,26 @@ public class DeckDraftService {
 
     public DeckDraftResponse getDraft(String deckId) {
         return toResponse(getExistingDraft(deckId));
+    }
+
+    public ConsultResponse consult(String deckId, String message) {
+        long start = System.currentTimeMillis();
+        DeckDraftEntity draft = getExistingDraft(deckId);
+        draft.setStatus("CONSULTING");
+        deckDraftRepository.save(draft);
+
+        RenderedPrompt prompt = onePagePromptService.consultant(draft.getInitialPrompt(), message);
+        AiChatResponse response = aiRuntimeService.chat(
+                LOCAL_USER_ID,
+                prompt.messages(),
+                prompt.responseFormat(),
+                prompt.maxTokens()
+        );
+
+        draft.setStatus("CONSULTED");
+        deckDraftRepository.save(draft);
+        recordWorkflow(draft, "deckConsult", prompt, response.content(), start);
+        return new ConsultResponse(response.content(), true);
     }
 
     public DeckOutline generateOutline(String deckId) {

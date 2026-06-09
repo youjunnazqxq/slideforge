@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 
 import {
   addDeckStickyNote,
+  consultDeckDraft,
   createDeckDraft,
   createOnePageDraftsFromDeck,
   createPagePlanDraftsFromDeck,
@@ -31,6 +32,7 @@ export const useDeckDraftStore = defineStore(
     const loadingStage = ref<'create' | 'outline' | ''>('')
     const errorMessage = ref('')
     const initialPrompt = ref('我想做一套关于 AI PPT Agent 项目可行性的内部立项汇报，目标是说服团队先投入一页 MVP。')
+    const assistantMessage = ref('')
     const researchMode = ref<'model-only' | 'search-assisted'>('model-only')
     const stickyNotes = ref<SlideStickyNoteResponse[]>([])
     const generatedDrafts = ref<DeckSlideDraftResponse[]>([])
@@ -121,6 +123,17 @@ export const useDeckDraftStore = defineStore(
         const response = await requestGenerateDeckResearch(id, { mode: researchMode.value })
         researchPack.value = response.data
         status.value = 'RESEARCH_READY'
+        await loadWorkflowRuns(id)
+      })
+    }
+
+    async function consultDeck() {
+      const id = await ensureDeck()
+
+      await runWithLoading('outline', async () => {
+        const response = await consultDeckDraft(id, { message: initialPrompt.value })
+        assistantMessage.value = response.data.message
+        status.value = 'CONSULTED'
         await loadWorkflowRuns(id)
       })
     }
@@ -368,6 +381,7 @@ export const useDeckDraftStore = defineStore(
     }
 
     return {
+      assistantMessage,
       deckId,
       errorMessage,
       generatedDrafts,
@@ -382,6 +396,7 @@ export const useDeckDraftStore = defineStore(
       stickyNotes,
       workflowRuns,
       addStickyNote,
+      consultDeck,
       createDraft,
       createAllOnePageDrafts,
       createAllPagePlanDrafts,
@@ -404,7 +419,7 @@ export const useDeckDraftStore = defineStore(
   {
     persist: {
       key: 'slideforge:deck-draft',
-      paths: ['deckId', 'status', 'initialPrompt', 'researchMode', 'researchPack', 'outline', 'stickyNotes', 'generatedDrafts', 'slidePreviews'],
+      paths: ['deckId', 'status', 'initialPrompt', 'assistantMessage', 'researchMode', 'researchPack', 'outline', 'stickyNotes', 'generatedDrafts', 'slidePreviews'],
     },
   },
 )
