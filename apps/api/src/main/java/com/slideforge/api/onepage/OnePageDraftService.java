@@ -222,9 +222,22 @@ public class OnePageDraftService {
             return List.of();
         }
 
-        return searchClient.search(requirementBriefJson).stream()
+        return searchClient.search(toSearchQuery(requirementBriefJson)).stream()
                 .limit(10)
                 .toList();
+    }
+
+    private String toSearchQuery(String requirementBriefJson) {
+        String compact = requirementBriefJson
+                .replace("{", " ")
+                .replace("}", " ")
+                .replace("\"", " ")
+                .replace(":", " ")
+                .replace(",", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+
+        return compact.length() <= 300 ? compact : compact.substring(0, 300);
     }
 
     private ResearchPack normalizeResearchPack(ResearchPack pack, String researchMode, List<SearchResult> sources) {
