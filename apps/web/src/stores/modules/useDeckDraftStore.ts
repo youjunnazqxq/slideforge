@@ -186,6 +186,11 @@ export const useDeckDraftStore = defineStore(
         await generateAllSlideSvgs()
       }
 
+      if (generatedDrafts.value.some((draft) => draft.status !== 'SVG_READY')) {
+        errorMessage.value = '仍有页面 SVG 生成失败，请先重试失败页面后再导出 PPTX。'
+        throw new Error(errorMessage.value)
+      }
+
       const draftIds = generatedDrafts.value.map((draft) => draft.draftId)
       return runWithLoading('outline', async () => exportOnePageDraftsPptx(draftIds))
     }

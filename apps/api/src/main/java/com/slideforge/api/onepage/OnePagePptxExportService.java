@@ -53,7 +53,7 @@ public class OnePagePptxExportService {
         }
 
         List<OnePageDraftEntity> drafts = draftIds.stream()
-                .map(draftId -> onePageDraftRepository.findById(UUID.fromString(draftId))
+                .map(draftId -> onePageDraftRepository.findById(toUuid(draftId))
                         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "草稿不存在。")))
                 .toList();
 
@@ -90,6 +90,18 @@ public class OnePagePptxExportService {
     private String fileName(OnePageDraftEntity draft) {
         String suffix = draft.getId().toString().substring(0, 8);
         return "slideforge-one-page-" + suffix + ".pptx";
+    }
+
+    private UUID toUuid(String draftId) {
+        if (!StringUtils.hasText(draftId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "存在尚未生成成功的页面草稿，请先重试失败页面。");
+        }
+
+        try {
+            return UUID.fromString(draftId);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "页面草稿 ID 不合法。");
+        }
     }
 
     public record ExportedPptx(String fileName, byte[] content) {
