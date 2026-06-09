@@ -151,12 +151,23 @@
             <div>
               <p class="section-kicker">资料摘要</p>
               <h3>{{ draftStore.researchPack.summary }}</h3>
+              <el-segmented
+                v-model="draftStore.researchMode"
+                :options="[
+                  { label: 'Model Only', value: 'model-only' },
+                  { label: 'Search Assisted', value: 'search-assisted' },
+                ]"
+              />
             </div>
             <div class="research-list">
               <article v-for="point in draftStore.researchPack.keyPoints" :key="point">
                 <el-icon><Check /></el-icon>
                 <span>{{ point }}</span>
               </article>
+            </div>
+            <div v-if="draftStore.researchPack.limitations.length" class="research-limitations">
+              <strong>Limitations</strong>
+              <span v-for="item in draftStore.researchPack.limitations" :key="item">{{ item }}</span>
             </div>
             <el-alert
               :closable="false"
@@ -657,6 +668,17 @@ async function runAction(action: () => Promise<unknown>) {
 .plan-blocks {
   display: grid;
   gap: 12px;
+}
+
+.research-limitations {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 13px;
 }
 
 .research-list article {

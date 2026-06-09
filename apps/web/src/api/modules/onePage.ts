@@ -19,6 +19,10 @@ export interface ConsultResponse {
   readyForBrief: boolean
 }
 
+export interface GenerateResearchRequest {
+  mode: 'model-only' | 'search-assisted'
+}
+
 export interface RequirementBriefResponse {
   topic: string
   audience: string
@@ -106,8 +110,8 @@ export function generateBrief(draftId: string) {
   return request.post<RequirementBriefResponse>(`${servicePrefix.onePage}/drafts/${draftId}/brief`)
 }
 
-export function generateResearch(draftId: string) {
-  return request.post<ResearchPackResponse>(`${servicePrefix.onePage}/drafts/${draftId}/research`)
+export function generateResearch(draftId: string, data?: GenerateResearchRequest) {
+  return request.post<ResearchPackResponse>(`${servicePrefix.onePage}/drafts/${draftId}/research`, data)
 }
 
 export function generatePagePlan(draftId: string) {

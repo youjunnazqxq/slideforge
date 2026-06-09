@@ -90,6 +90,7 @@ export const useOnePageDraftStore = defineStore(
     const loadingStage = ref<LoadingStage>('')
     const errorMessage = ref('')
     const validationWarnings = ref<string[]>([])
+    const researchMode = ref<'model-only' | 'search-assisted'>('model-only')
     const rightPanelCollapsed = ref(false)
     const userPrompt = ref('我想做一页关于 AI PPT Agent 项目可行性的汇报页，给团队内部立项讨论用。')
     const assistantMessage = ref('我会先确认受众、场景和核心结论，再生成结构化 brief。')
@@ -226,7 +227,7 @@ export const useOnePageDraftStore = defineStore(
       const id = await ensureDraft()
 
       await runWithLoading('research', async () => {
-        const response = await requestGenerateResearch(id)
+        const response = await requestGenerateResearch(id, { mode: researchMode.value })
         applyResearch(response.data)
         markStep('research', 'done')
         setStage('research')
@@ -372,6 +373,7 @@ export const useOnePageDraftStore = defineStore(
       loadingStage,
       pagePlan,
       researchPack,
+      researchMode,
       rightPanelCollapsed,
       steps,
       status,
@@ -402,6 +404,7 @@ export const useOnePageDraftStore = defineStore(
         'assistantMessage',
         'brief',
         'researchPack',
+        'researchMode',
         'pagePlan',
         'svgContent',
         'validationWarnings',

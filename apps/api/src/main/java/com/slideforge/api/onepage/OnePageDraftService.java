@@ -14,6 +14,8 @@ import com.slideforge.api.onepage.dto.ResearchPack;
 import com.slideforge.api.onepage.dto.SvgGenerateResponse;
 import com.slideforge.api.onepage.dto.ValidationReport;
 import com.slideforge.api.onepage.dto.VisualSpec;
+import com.slideforge.api.research.SearchClient;
+import com.slideforge.api.research.SearchResult;
 import com.slideforge.api.svg.SvgValidationService;
 import com.slideforge.api.workflow.WorkflowRun;
 import com.slideforge.api.workflow.WorkflowRunRepository;
@@ -33,6 +35,7 @@ public class OnePageDraftService {
     private final SvgValidationService svgValidationService;
     private final AiRuntimeService aiRuntimeService;
     private final OnePagePromptService onePagePromptService;
+    private final SearchClient searchClient;
     private final ObjectMapper objectMapper;
 
     public OnePageDraftService(
@@ -41,6 +44,7 @@ public class OnePageDraftService {
             SvgValidationService svgValidationService,
             AiRuntimeService aiRuntimeService,
             OnePagePromptService onePagePromptService,
+            SearchClient searchClient,
             ObjectMapper objectMapper
     ) {
         this.onePageDraftRepository = onePageDraftRepository;
@@ -48,6 +52,7 @@ public class OnePageDraftService {
         this.svgValidationService = svgValidationService;
         this.aiRuntimeService = aiRuntimeService;
         this.onePagePromptService = onePagePromptService;
+        this.searchClient = searchClient;
         this.objectMapper = objectMapper;
     }
 
@@ -98,14 +103,29 @@ public class OnePageDraftService {
     }
 
     public ResearchPack generateResearch(String draftId) {
+        return generateResearch(draftId, "model-only");
+    }
+
+    public ResearchPack generateResearch(String draftId, String requestedMode) {
         long start = System.currentTimeMillis();
         OnePageDraftEntity draft = getExistingDraft(draftId);
         ensureBrief(draft);
         draft = getExistingDraft(draftId);
 
-        RenderedPrompt prompt = onePagePromptService.research(draft.getRequirementBriefJson());
+        String researchMode = normalizeResearchMode(requestedMode);
+        List<SearchResult> sources = collectSources(researchMode, draft.getRequirementBriefJson());
+
+        if ("search-assisted".equals(researchMode) && sources.isEmpty()) {
+            researchMode = "model-only";
+        }
+
+        RenderedPrompt prompt = onePagePromptService.research(
+                draft.getRequirementBriefJson(),
+                researchMode,
+                toJson(sources)
+        );
         AiChatResponse response = callPrompt(prompt);
-        ResearchPack researchPack = parseModelJson(response.content(), ResearchPack.class);
+        ResearchPack researchPack = normalizeResearchPack(parseModelJson(response.content(), ResearchPack.class), researchMode, sources);
 
         draft.setResearchPackJson(toJson(researchPack));
         draft.setStatus("RESEARCH_READY");
@@ -187,6 +207,54 @@ public class OnePageDraftService {
         if (draft.getResearchPackJson() == null) {
             generateResearch(draft.getId().toString());
         }
+    }
+
+    private String normalizeResearchMode(String requestedMode) {
+        if ("search-assisted".equalsIgnoreCase(requestedMode)) {
+            return "search-assisted";
+        }
+
+        return "model-only";
+    }
+
+    private List<SearchResult> collectSources(String researchMode, String requirementBriefJson) {
+        if (!"search-assisted".equals(researchMode) || !searchClient.available()) {
+            return List.of();
+        }
+
+        return searchClient.search(requirementBriefJson).stream()
+                .limit(10)
+                .toList();
+    }
+
+    private ResearchPack normalizeResearchPack(ResearchPack pack, String researchMode, List<SearchResult> sources) {
+        List<ResearchPack.Source> normalizedSources = "search-assisted".equals(researchMode)
+                ? sources.stream()
+                        .map(source -> new ResearchPack.Source(
+                                source.id(),
+                                source.title(),
+                                source.url(),
+                                source.publisher(),
+                                source.publishedAt(),
+                                source.snippet()
+                        ))
+                        .toList()
+                : List.of();
+        List<String> limitations = pack.limitations() == null ? List.of() : pack.limitations();
+
+        if ("model-only".equals(researchMode) && limitations.stream().noneMatch(item -> item.contains("外部来源"))) {
+            limitations = new java.util.ArrayList<>(limitations);
+            limitations.add("当前未接入外部搜索来源，资料由模型根据 brief 整理。");
+        }
+
+        return new ResearchPack(
+                researchMode,
+                pack.summary(),
+                pack.keyPoints(),
+                pack.evidence(),
+                normalizedSources,
+                limitations
+        );
     }
 
     private OnePageDraftEntity getExistingDraft(String draftId) {

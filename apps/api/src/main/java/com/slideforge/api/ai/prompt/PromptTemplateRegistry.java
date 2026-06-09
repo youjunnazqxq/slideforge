@@ -76,15 +76,20 @@ public class PromptTemplateRegistry {
                             当前默认是 model-only 模式；没有真实来源时 sources 必须为空。
                             """,
                     """
-                            请基于 brief 生成 model-only researchPack。
-                            不要编造 URL 或外部来源，sources 必须为空数组。
+                            请基于 brief 生成 researchPack。
+                            researchMode={{researchMode}}
+                            如果 researchMode 是 model-only，不要编造 URL 或外部来源，sources 必须为空数组。
+                            如果 researchMode 是 search-assisted，sources 只能来自给定 sourcesJson。
 
                             brief JSON：
                             {{requirementBriefJson}}
 
+                            sourcesJson：
+                            {{sourcesJson}}
+
                             JSON 字段必须完全如下：
                             {
-                              "mode": "model-only",
+                              "mode": "{{researchMode}}",
                               "summary": "string",
                               "keyPoints": ["string"],
                               "evidence": [{"claim": "string", "support": "string", "sourceIds": []}],

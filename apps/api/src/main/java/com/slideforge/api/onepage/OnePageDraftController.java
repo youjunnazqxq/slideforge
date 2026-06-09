@@ -5,6 +5,7 @@ import com.slideforge.api.onepage.dto.ConsultRequest;
 import com.slideforge.api.onepage.dto.ConsultResponse;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftRequest;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
+import com.slideforge.api.onepage.dto.GenerateResearchRequest;
 import com.slideforge.api.onepage.dto.OnePageDraftResponse;
 import com.slideforge.api.onepage.dto.PagePlan;
 import com.slideforge.api.onepage.dto.RequirementBrief;
@@ -72,8 +73,12 @@ public class OnePageDraftController {
     }
 
     @PostMapping("/{draftId}/research")
-    public ApiResponse<ResearchPack> generateResearch(@PathVariable String draftId) {
-        return ApiResponse.success(onePageDraftService.generateResearch(draftId));
+    public ApiResponse<ResearchPack> generateResearch(
+            @PathVariable String draftId,
+            @RequestBody(required = false) GenerateResearchRequest request
+    ) {
+        String mode = request == null ? "model-only" : request.normalizedMode();
+        return ApiResponse.success(onePageDraftService.generateResearch(draftId, mode));
     }
 
     @PostMapping("/{draftId}/page-plan")
