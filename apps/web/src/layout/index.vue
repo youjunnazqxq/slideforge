@@ -1,6 +1,7 @@
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'app-shell--collapsed': sidebarCollapsed }">
     <aside class="app-shell__sidebar">
+      <div class="sidebar-head">
       <RouterLink class="brand" to="/app/workspace">
         <span class="brand__mark">S</span>
         <span>
@@ -8,6 +9,19 @@
           <small>AI PPT 工作台</small>
         </span>
       </RouterLink>
+
+      <button
+        class="sidebar-toggle"
+        :aria-label="sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
+        type="button"
+        @click="toggleSidebar"
+      >
+        <el-icon>
+          <Expand v-if="sidebarCollapsed" />
+          <Fold v-else />
+        </el-icon>
+      </button>
+      </div>
 
       <nav class="nav-list">
         <RouterLink
@@ -63,13 +77,15 @@
 <script setup lang="ts">
 import {
   DataAnalysis,
+  Expand,
   Files,
+  Fold,
   MagicStick,
   Setting,
   User,
   View,
 } from '@element-plus/icons-vue'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useStore } from '@/stores'
@@ -77,6 +93,7 @@ import { useStore } from '@/stores'
 const route = useRoute()
 const router = useRouter()
 const userStore = useStore()
+const sidebarCollapsed = ref(localStorage.getItem('slideforge:sidebar-collapsed') === 'true')
 
 const navItems = [
   {
@@ -123,6 +140,11 @@ function goOnePage() {
   router.push('/app/one-page')
 }
 
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+  localStorage.setItem('slideforge:sidebar-collapsed', String(sidebarCollapsed.value))
+}
+
 function handleLogout() {
   userStore.clearUser()
   router.replace('/login')
@@ -135,6 +157,11 @@ function handleLogout() {
   min-height: 100vh;
   grid-template-columns: 248px minmax(0, 1fr);
   background: #f5f6f8;
+  transition: grid-template-columns 0.18s ease;
+}
+
+.app-shell--collapsed {
+  grid-template-columns: 76px minmax(0, 1fr);
 }
 
 .app-shell__sidebar {
@@ -149,12 +176,22 @@ function handleLogout() {
   padding: 20px 16px;
 }
 
+.sidebar-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  align-items: start;
+  gap: 8px;
+  border-bottom: 1px solid #eef0f3;
+  padding-bottom: 14px;
+}
+
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 4px 6px 14px;
-  border-bottom: 1px solid #eef0f3;
+  min-width: 0;
+  padding: 4px 0 0 6px;
+  text-decoration: none;
 
   strong,
   small {
@@ -170,6 +207,23 @@ function handleLogout() {
     margin-top: 2px;
     color: #6b7280;
     font-size: 12px;
+  }
+}
+
+.sidebar-toggle {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #4b5563;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #bfdbfe;
+    color: #1d4ed8;
   }
 }
 
@@ -309,6 +363,39 @@ function handleLogout() {
 
 .app-shell__content {
   padding: 24px 28px 32px;
+}
+
+.app-shell--collapsed {
+  .app-shell__sidebar {
+    align-items: center;
+    padding: 20px 10px;
+  }
+
+  .sidebar-head {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    width: 100%;
+    padding-bottom: 12px;
+  }
+
+  .brand {
+    padding: 0;
+  }
+
+  .brand span:last-child,
+  .nav-list__item span,
+  .sidebar-card {
+    display: none;
+  }
+
+  .nav-list {
+    width: 100%;
+  }
+
+  .nav-list__item {
+    justify-content: center;
+    padding: 0;
+  }
 }
 
 @media (max-width: 980px) {
