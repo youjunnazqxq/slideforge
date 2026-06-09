@@ -114,6 +114,17 @@
         <div class="research-pack__points">
           <article v-for="point in deckStore.researchPack.keyPoints" :key="point">{{ point }}</article>
         </div>
+        <div v-if="deckStore.researchPack.evidence.length" class="research-pack__evidence">
+          <article v-for="item in deckStore.researchPack.evidence" :key="item.claim">
+            <strong>{{ item.claim }}</strong>
+            <p>{{ item.support }}</p>
+            <div v-if="item.sourceIds?.length">
+              <el-tag v-for="sourceId in item.sourceIds" :key="sourceId" size="small">
+                {{ deckSourceLabel(sourceId) }}
+              </el-tag>
+            </div>
+          </article>
+        </div>
         <div v-if="deckStore.researchPack.sources.length" class="research-pack__sources">
           <a
             v-for="source in deckStore.researchPack.sources"
@@ -515,6 +526,16 @@ function validationWarningCount(slideId: string) {
 
 function validationWarnings(slideId: string) {
   return deckStore.slideValidationWarnings[slideId] ?? []
+}
+
+function deckSourceLabel(sourceId: string) {
+  const source = deckStore.researchPack.sources.find((item) => item.id === sourceId)
+
+  if (!source) {
+    return sourceId
+  }
+
+  return source.title || source.publisher || source.id || sourceId
 }
 
 function currentStepStatus(step: string) {
@@ -1080,6 +1101,7 @@ async function downloadDeckPptx() {
 }
 
 .research-pack__points,
+.research-pack__evidence,
 .research-pack__sources {
   display: grid;
   gap: 8px;
@@ -1091,6 +1113,41 @@ async function downloadDeckPptx() {
   background: #f9fafb;
   color: #374151;
   line-height: 1.55;
+}
+
+.research-pack__evidence {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  article {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    background: #eff6ff;
+  }
+
+  strong,
+  p {
+    margin: 0;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 14px;
+  }
+
+  p {
+    color: #4b5563;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
 }
 
 .research-pack__sources a {
@@ -1301,6 +1358,7 @@ async function downloadDeckPptx() {
   }
 
   .outline-grid,
+  .research-pack__evidence,
   .sticky-grid,
   .generated-drafts__list article {
     grid-template-columns: 1fr;
