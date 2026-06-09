@@ -232,9 +232,12 @@
             </label>
             <div class="plan-blocks">
               <article v-for="block in draftStore.pagePlan.contentBlocks" :key="block.id">
-                <strong>{{ block.title }}</strong>
-                <span>{{ block.role }}</span>
-                <p>{{ block.content }}</p>
+                <el-input v-model="block.title" size="small" />
+                <div class="plan-blocks__meta">
+                  <el-input v-model="block.role" size="small" />
+                  <el-input v-model="block.type" size="small" />
+                </div>
+                <el-input v-model="block.content" :rows="4" resize="none" type="textarea" />
               </article>
             </div>
             <div class="stage-actions">
@@ -920,6 +923,9 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 
   article {
+    display: grid;
+    align-content: start;
+    gap: 8px;
     padding: 16px;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
@@ -947,6 +953,12 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
       line-height: 1.6;
     }
   }
+}
+
+.plan-blocks__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .theme-swatches {
