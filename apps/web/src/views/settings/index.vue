@@ -4,14 +4,14 @@
       <div>
         <p>BYOK AI Provider</p>
         <h2>接入你的 AI API</h2>
-        <span>SlideForge 会通过后端代理调用模型，前端只保存掩码状态。</span>
+        <span>SlideForge 通过后端代理调用模型，前端只展示脱敏状态，不保存明文 Key。</span>
       </div>
       <el-tag :type="aiSettingsStore.isConfigured ? 'success' : 'warning'" size="large">
         {{ aiSettingsStore.isConfigured ? '已配置' : '未完成配置' }}
       </el-tag>
     </header>
 
-    <el-form class="settings-form" label-position="top">
+    <el-form v-loading="aiSettingsStore.loading" class="settings-form" label-position="top">
       <div class="settings-form__grid">
         <el-form-item label="Provider">
           <el-select v-model="form.provider">
@@ -49,9 +49,19 @@
       </div>
 
       <div class="settings-actions">
-        <el-button type="primary" @click="save">保存配置</el-button>
-        <el-button :loading="testing" plain @click="testConnection">测试连接</el-button>
-        <el-button v-if="aiSettingsStore.settings.apiKeyConfigured" text type="danger" @click="clearKey">
+        <el-button :loading="aiSettingsStore.saving" type="primary" @click="save">
+          保存配置
+        </el-button>
+        <el-button :loading="aiSettingsStore.testing" plain @click="testConnection">
+          测试连接
+        </el-button>
+        <el-button
+          v-if="aiSettingsStore.settings.apiKeyConfigured"
+          :loading="aiSettingsStore.deletingKey"
+          text
+          type="danger"
+          @click="clearKey"
+        >
           删除 Key
         </el-button>
       </div>
@@ -62,13 +72,20 @@
         :title="aiSettingsStore.settings.lastTestMessage"
         :type="aiSettingsStore.settings.lastTestStatus === 'success' ? 'success' : 'warning'"
       />
+
+      <el-alert
+        v-if="aiSettingsStore.errorMessage"
+        :closable="false"
+        :title="aiSettingsStore.errorMessage"
+        type="error"
+      />
     </el-form>
 
     <section class="security-panel">
       <h3>安全规则</h3>
       <ul>
-        <li>API Key 输入框使用 password 类型，保存后只显示掩码。</li>
-        <li>后续接入真实后端后，Key 应由后端加密保存，不写入日志。</li>
+        <li>API Key 输入框使用 password 类型，保存后只显示后端返回的脱敏文本。</li>
+        <li>后端使用加密字段保存 Key，不在接口、日志或前端持久化中返回明文。</li>
         <li>AI 生成流程统一通过后端代理调用，前端不直接请求模型供应商。</li>
       </ul>
     </section>
@@ -77,12 +94,11 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
+import { onMounted, reactive } from 'vue'
 
 import { useAiSettingsStore } from '@/stores'
 
 const aiSettingsStore = useAiSettingsStore()
-const testing = ref(false)
 
 const form = reactive({
   provider: aiSettingsStore.settings.provider,
@@ -93,31 +109,50 @@ const form = reactive({
   maxTokens: aiSettingsStore.settings.maxTokens,
 })
 
-function save() {
-  aiSettingsStore.saveSettings(form)
-  form.apiKey = ''
-  aiSettingsStore.setTestResult('idle', '配置已保存。真实后端接入后将加密保存 API Key。')
-  ElMessage.success('AI 配置已保存')
+onMounted(async () => {
+  try {
+    await aiSettingsStore.loadSettings()
+    syncFormFromStore()
+  } catch {
+    ElMessage.error(aiSettingsStore.errorMessage || '读取 AI 配置失败')
+  }
+})
+
+async function save() {
+  try {
+    await aiSettingsStore.saveSettings(form)
+    form.apiKey = ''
+    syncFormFromStore()
+    ElMessage.success('AI 配置已保存')
+  } catch {
+    ElMessage.error(aiSettingsStore.errorMessage || '保存 AI 配置失败')
+  }
 }
 
 async function testConnection() {
-  testing.value = true
-  await new Promise((resolve) => window.setTimeout(resolve, 480))
-
-  if (!form.baseUrl || !form.model || (!form.apiKey && !aiSettingsStore.settings.apiKeyConfigured)) {
-    aiSettingsStore.setTestResult('failed', '请先填写 Base URL、模型和 API Key。')
-    testing.value = false
-    return
+  try {
+    await aiSettingsStore.testConnectionWith(form)
+  } catch {
+    ElMessage.error(aiSettingsStore.errorMessage || '测试连接失败')
   }
-
-  aiSettingsStore.setTestResult('success', '本地配置校验通过。接入后端后会请求模型服务验证。')
-  testing.value = false
 }
 
-function clearKey() {
-  aiSettingsStore.clearApiKey()
-  form.apiKey = ''
-  ElMessage.success('API Key 状态已清除')
+async function clearKey() {
+  try {
+    await aiSettingsStore.clearApiKey()
+    form.apiKey = ''
+    ElMessage.success('API Key 已删除')
+  } catch {
+    ElMessage.error(aiSettingsStore.errorMessage || '删除 API Key 失败')
+  }
+}
+
+function syncFormFromStore() {
+  form.provider = aiSettingsStore.settings.provider
+  form.baseUrl = aiSettingsStore.settings.baseUrl
+  form.model = aiSettingsStore.settings.model
+  form.temperature = aiSettingsStore.settings.temperature
+  form.maxTokens = aiSettingsStore.settings.maxTokens
 }
 </script>
 
