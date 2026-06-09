@@ -17,12 +17,12 @@ This checklist tracks SlideForge against the referenced PPT Agent workflow:
 - Prompt trace list with expandable prompt and output previews.
 - Server-side `POST /api/decks/{deckId}/agent-flow` orchestration endpoint.
 - Deck workspace uses a three-column shell with a collapsible right Agent panel.
+- Agent Flow timeline in the right panel.
+- Per-step rerun controls for consult, research, outline, page plans, Bento specs, and SVG generation.
 - SVG validation checks root closure, 1280x720 canvas, external resources, inline styles, filters, data URLs, element bounds, text density, and Bento grid density.
 
 ## Remaining Gaps
 
-- Add an in-app step timeline for the server-side agent flow instead of only showing the current step label.
-- Add per-step retry controls for research, outline, page plans, visual specs, and SVG separately.
 - Add deck-level export preview that shows the final slide order before PPTX download.
 - Add API documentation for the agent flow endpoint and expected BYOK AI-provider setup.
 - Add backend tests around `runAgentFlow` orchestration with mocked AI services.

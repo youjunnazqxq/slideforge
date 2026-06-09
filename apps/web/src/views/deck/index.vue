@@ -306,6 +306,14 @@
               <strong>{{ step.label }}</strong>
               <span>{{ step.description }}</span>
             </div>
+            <el-button
+              :disabled="fullPipelineRunning"
+              size="small"
+              text
+              @click="runAction(() => rerunAgentStep(step.key))"
+            >
+              Rerun
+            </el-button>
           </article>
         </section>
 
@@ -482,6 +490,27 @@ function validationWarnings(slideId: string) {
 
 function currentStepStatus(step: string) {
   return fullPipelineRunning.value && fullPipelineStep.value === step ? 'active' : 'pending'
+}
+
+async function rerunAgentStep(stepKey: string) {
+  const actions: Record<string, () => Promise<unknown>> = {
+    consult: deckStore.consultDeck,
+    research: deckStore.generateDeckResearch,
+    outline: deckStore.generateDeckOutline,
+    'page-plans': deckStore.createAllPagePlanDrafts,
+    'bento-specs': deckStore.createAllVisualSpecDrafts,
+    svg: deckStore.generateAllSlideSvgs,
+  }
+  const action = actions[stepKey]
+
+  if (!action) {
+    return
+  }
+
+  fullPipelineStep.value = stepKey
+  await action()
+  fullPipelineStep.value = ''
+  ElMessage.success(`${stepKey} rerun complete`)
 }
 
 function toggleTrace(runId: string) {
@@ -734,7 +763,8 @@ async function downloadDeckPptx() {
 
   article {
     display: grid;
-    grid-template-columns: 14px minmax(0, 1fr);
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+    align-items: start;
     gap: 8px;
     padding: 9px;
     border: 1px solid #edf2f7;
