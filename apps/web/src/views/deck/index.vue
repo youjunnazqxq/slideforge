@@ -336,6 +336,21 @@
           </article>
         </section>
 
+        <section v-if="exportPreviewRows.length" class="export-preview">
+          <header>
+            <p>Export Preview</p>
+            <span>{{ exportReadyCount }} / {{ exportPreviewRows.length }}</span>
+          </header>
+          <article
+            v-for="row in exportPreviewRows"
+            :key="row.slideId"
+            :class="{ 'is-ready': row.ready, 'is-blocked': !row.ready }"
+          >
+            <strong>{{ row.order }}. {{ row.title }}</strong>
+            <span>{{ row.status }}</span>
+          </article>
+        </section>
+
         <section v-if="deckStore.workflowRuns.length" class="deck-trace">
           <header>
             <p>Prompt Trace</p>
@@ -431,6 +446,20 @@ const agentFlowTimeline = computed(() => [
   },
 ])
 const agentFlowDoneCount = computed(() => agentFlowTimeline.value.filter((step) => step.status === 'done').length)
+const exportPreviewRows = computed(() =>
+  visibleStickyNotes.value.map((note, index) => {
+    const draft = deckStore.generatedDrafts.find((item) => item.slideId === note.slideId)
+
+    return {
+      slideId: note.slideId,
+      order: note.order || index + 1,
+      title: draft?.title || note.title || 'Untitled slide',
+      status: draft?.status || 'NOT_GENERATED',
+      ready: draft?.status === 'SVG_READY',
+    }
+  }),
+)
+const exportReadyCount = computed(() => exportPreviewRows.value.filter((row) => row.ready).length)
 
 onMounted(() => {
   aiSettingsStore.loadSettings().catch(() => undefined)
@@ -807,6 +836,57 @@ async function downloadDeckPptx() {
 
     i {
       background: #2563eb;
+    }
+  }
+}
+
+.export-preview {
+  display: grid;
+  gap: 8px;
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  header p,
+  header span {
+    margin: 0;
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  article {
+    display: grid;
+    gap: 3px;
+    padding: 9px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fff7ed;
+  }
+
+  strong {
+    overflow: hidden;
+    color: #111827;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    color: #9a3412;
+    font-size: 11px;
+  }
+
+  .is-ready {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+
+    span {
+      color: #166534;
     }
   }
 }
