@@ -165,6 +165,16 @@
                 <span>{{ point }}</span>
               </article>
             </div>
+            <div v-if="draftStore.researchPack.sources.length" class="research-sources">
+              <article v-for="source in draftStore.researchPack.sources" :key="source.id || source.url">
+                <div>
+                  <strong>{{ source.title || source.url }}</strong>
+                  <span>{{ source.publisher || 'Source' }} {{ source.publishedAt ? `· ${source.publishedAt}` : '' }}</span>
+                </div>
+                <p>{{ source.snippet }}</p>
+                <a :href="source.url" rel="noreferrer" target="_blank">打开来源</a>
+              </article>
+            </div>
             <div v-if="draftStore.researchPack.limitations.length" class="research-limitations">
               <strong>Limitations</strong>
               <span v-for="item in draftStore.researchPack.limitations" :key="item">{{ item }}</span>
@@ -724,6 +734,7 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
 }
 
 .research-list,
+.research-sources,
 .plan-blocks,
 .visual-card-list {
   display: grid;
@@ -753,6 +764,53 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
   .el-icon {
     margin-top: 4px;
     color: #059669;
+  }
+}
+
+.research-sources {
+  article {
+    display: grid;
+    gap: 8px;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  strong,
+  span,
+  p,
+  a {
+    margin: 0;
+  }
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 14px;
+  }
+
+  span {
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: 12px;
+  }
+
+  p {
+    color: #4b5563;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  a {
+    color: #2563eb;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
   }
 }
 
