@@ -149,6 +149,45 @@ public class PromptTemplateRegistry {
                             """,
                     "text",
                     4096
+            ),
+            PromptKeys.DECK_OUTLINE,
+            new PromptTemplate(
+                    PromptKeys.DECK_OUTLINE,
+                    "v1",
+                    COMMON_SYSTEM + """
+                            你是顶级 PPT 结构架构师。你的任务是设计整套 PPT 的表达结构，不生成页面视觉。
+                            必须遵循结论先行、以上统下、分类清晰、逻辑递进。每一页只承载一个主要表达任务。
+                            输出必须像专业咨询或商业汇报大纲，而不是普通目录。
+                            """,
+                    """
+                            请根据用户需求生成完整 PPT 大纲。
+
+                            用户需求：
+                            {{initialPrompt}}
+
+                            JSON 字段必须完全如下：
+                            {
+                              "title": "string",
+                              "audience": "string",
+                              "scenario": "string",
+                              "coreThesis": "string",
+                              "structure": [
+                                {"id": "section-1", "title": "string", "purpose": "string"}
+                              ],
+                              "slides": [
+                                {
+                                  "id": "slide-001",
+                                  "type": "cover | agenda | section | content | summary",
+                                  "sectionId": "section-1",
+                                  "title": "string",
+                                  "message": "string",
+                                  "purpose": "string"
+                                }
+                              ]
+                            }
+                            """,
+                    "json",
+                    4096
             )
     );
 
