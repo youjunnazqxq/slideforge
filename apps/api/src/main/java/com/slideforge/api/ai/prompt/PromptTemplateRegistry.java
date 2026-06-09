@@ -185,10 +185,14 @@ public class PromptTemplateRegistry {
                             - cards 数量控制在 3-6 个；primary 卡片面积最大，supporting 卡片要围绕 primary 排布。
                             - 每个 card.id 必须稳定，后续 SVG 元素应使用 data-card-id 绑定。
                             - 选择一个 layoutPattern，并让坐标真实匹配该模式：
-                              1. hero-left: 左侧大主卡，右侧 2-4 张纵向辅助卡。
-                              2. hero-top: 顶部横向主卡，下方 3 张辅助卡。
-                              3. mosaic: 中央主卡，四周小卡环绕。
-                              4. split-hero: 左右双栏，主卡占其中一栏的大部分面积。
+                              1. single-focus: 一个超大主卡作为全页焦点，下方少量辅助卡。
+                              2. two-column: 左右两栏 50/50 对比，每栏可有主信息和辅助信息。
+                              3. asymmetric: 非对称两栏，一侧大主卡，另一侧多张辅助卡。
+                              4. three-column: 三栏并列，用于并列方案、阶段或要点。
+                              5. hero-left: 左侧大主卡，右侧 2-4 张纵向辅助卡。
+                              6. hero-top: 顶部横向主卡，下方 3 张辅助卡。
+                              7. mosaic: 中央主卡，四周小卡环绕。
+                              8. split-hero: 左右双栏，主卡占其中一栏的大部分面积。
                             - 不要生成平均网格；Bento 必须有明显的视觉重心。
                             - 使用专业克制的非单色主题，避免整页只有一种蓝/紫/灰。
 
@@ -206,7 +210,7 @@ public class PromptTemplateRegistry {
                                 "card": "#FFFFFF",
                                 "border": "#E5E7EB"
                               },
-                              "layoutPattern": "hero-left | hero-top | mosaic | split-hero",
+                              "layoutPattern": "single-focus | two-column | asymmetric | three-column | hero-left | hero-top | mosaic | split-hero",
                               "cards": [
                                 {"id": "hero", "blockId": "primary", "x": 64, "y": 96, "w": 560, "h": 520, "priority": "primary"}
                               ]

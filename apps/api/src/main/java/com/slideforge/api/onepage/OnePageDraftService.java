@@ -456,7 +456,8 @@ public class OnePageDraftService {
         String normalized = pattern.trim().toLowerCase();
 
         return switch (normalized) {
-            case "hero-left", "hero-top", "mosaic", "split-hero" -> normalized;
+            case "single-focus", "two-column", "asymmetric", "three-column",
+                    "hero-left", "hero-top", "mosaic", "split-hero" -> normalized;
             default -> "hero-left";
         };
     }

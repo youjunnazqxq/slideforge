@@ -553,13 +553,25 @@ import { useRouter } from 'vue-router'
 import { useAiSettingsStore, useOnePageDraftStore } from '@/stores'
 import type { RequirementBrief, VisualSpec } from '@/stores'
 
-type LayoutPattern = 'hero-left' | 'hero-top' | 'mosaic' | 'split-hero'
+type LayoutPattern =
+  | 'single-focus'
+  | 'two-column'
+  | 'asymmetric'
+  | 'three-column'
+  | 'hero-left'
+  | 'hero-top'
+  | 'mosaic'
+  | 'split-hero'
 
 const draftStore = useOnePageDraftStore()
 const aiSettingsStore = useAiSettingsStore()
 const router = useRouter()
 const activeTraceId = ref('')
 const layoutPatternOptions: Array<{ label: string; value: LayoutPattern }> = [
+  { label: 'Single Focus', value: 'single-focus' },
+  { label: 'Two Column', value: 'two-column' },
+  { label: 'Asymmetric', value: 'asymmetric' },
+  { label: 'Three Column', value: 'three-column' },
   { label: 'Hero Left', value: 'hero-left' },
   { label: 'Hero Top', value: 'hero-top' },
   { label: 'Mosaic', value: 'mosaic' },
@@ -687,6 +699,28 @@ function makeLayoutCards(pattern: LayoutPattern): VisualSpec['cards'] {
   const blockId = (index: number, fallback: string) => blockIds[index] || fallback
 
   const cardsByPattern: Record<LayoutPattern, VisualSpec['cards']> = {
+    'single-focus': [
+      { id: 'hero', blockId: blockId(0, 'primary'), x: 120, y: 104, w: 1040, h: 360, priority: 'primary' },
+      { id: 'support-1', blockId: blockId(1, 'support-1'), x: 120, y: 504, w: 500, h: 120, priority: 'secondary' },
+      { id: 'support-2', blockId: blockId(2, 'support-2'), x: 660, y: 504, w: 500, h: 120, priority: 'supporting' },
+    ],
+    'two-column': [
+      { id: 'left-main', blockId: blockId(0, 'primary'), x: 64, y: 96, w: 552, h: 360, priority: 'primary' },
+      { id: 'right-main', blockId: blockId(1, 'secondary'), x: 664, y: 96, w: 552, h: 360, priority: 'secondary' },
+      { id: 'left-support', blockId: blockId(2, 'support-1'), x: 64, y: 496, w: 552, h: 128, priority: 'supporting' },
+      { id: 'right-support', blockId: blockId(3, 'support-2'), x: 664, y: 496, w: 552, h: 128, priority: 'supporting' },
+    ],
+    asymmetric: [
+      { id: 'hero', blockId: blockId(0, 'primary'), x: 64, y: 88, w: 672, h: 536, priority: 'primary' },
+      { id: 'support-1', blockId: blockId(1, 'support-1'), x: 776, y: 88, w: 440, h: 156, priority: 'secondary' },
+      { id: 'support-2', blockId: blockId(2, 'support-2'), x: 776, y: 284, w: 440, h: 156, priority: 'secondary' },
+      { id: 'support-3', blockId: blockId(3, 'support-3'), x: 776, y: 480, w: 440, h: 144, priority: 'supporting' },
+    ],
+    'three-column': [
+      { id: 'column-1', blockId: blockId(0, 'primary'), x: 64, y: 96, w: 352, h: 528, priority: 'primary' },
+      { id: 'column-2', blockId: blockId(1, 'support-1'), x: 464, y: 96, w: 352, h: 528, priority: 'secondary' },
+      { id: 'column-3', blockId: blockId(2, 'support-2'), x: 864, y: 96, w: 352, h: 528, priority: 'secondary' },
+    ],
     'hero-left': [
       { id: 'hero', blockId: blockId(0, 'primary'), x: 64, y: 96, w: 560, h: 528, priority: 'primary' },
       { id: 'support-1', blockId: blockId(1, 'support-1'), x: 656, y: 96, w: 560, h: 152, priority: 'secondary' },
