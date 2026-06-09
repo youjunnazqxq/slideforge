@@ -275,6 +275,11 @@
               <small v-if="validationWarningCount(draft.slideId)">
                 {{ validationWarningCount(draft.slideId) }} validation warnings
               </small>
+              <ul v-if="validationWarningCount(draft.slideId)" class="generated-drafts__warnings">
+                <li v-for="warning in validationWarnings(draft.slideId)" :key="warning">
+                  {{ warning }}
+                </li>
+              </ul>
               <small v-if="draft.errorMessage">{{ draft.errorMessage }}</small>
             </div>
             <div
@@ -398,6 +403,10 @@ function setPrimaryTag(note: { tags?: string[] }, value: string) {
 
 function validationWarningCount(slideId: string) {
   return deckStore.slideValidationWarnings[slideId]?.length ?? 0
+}
+
+function validationWarnings(slideId: string) {
+  return deckStore.slideValidationWarnings[slideId] ?? []
 }
 
 async function batchCreateDrafts() {
@@ -909,6 +918,24 @@ async function downloadDeckPptx() {
     display: block;
     width: 100%;
     height: 100%;
+  }
+}
+
+.generated-drafts__warnings {
+  display: grid;
+  max-height: 96px;
+  gap: 3px;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    padding-left: 8px;
+    border-left: 2px solid #fca5a5;
+    color: #991b1b;
+    font-size: 11px;
+    line-height: 1.45;
   }
 }
 
