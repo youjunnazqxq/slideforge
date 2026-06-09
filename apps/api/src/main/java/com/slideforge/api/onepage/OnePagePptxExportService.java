@@ -36,6 +36,8 @@ public class OnePagePptxExportService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请先生成 SVG 后再导出 PPTX。");
         }
 
+        assertExportReady(draft);
+
         try (XMLSlideShow ppt = new XMLSlideShow(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             ppt.setPageSize(new Dimension(SLIDE_WIDTH, SLIDE_HEIGHT));
             addSvgSlide(ppt, draft.getSvgContent());
@@ -63,6 +65,8 @@ public class OnePagePptxExportService {
             }
         });
 
+        drafts.forEach(this::assertExportReady);
+
         try (XMLSlideShow ppt = new XMLSlideShow(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             ppt.setPageSize(new Dimension(SLIDE_WIDTH, SLIDE_HEIGHT));
 
@@ -74,6 +78,12 @@ public class OnePagePptxExportService {
             return new ExportedPptx("slideforge-deck-" + drafts.size() + "-pages.pptx", output.toByteArray());
         } catch (IOException exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "PPTX 导出失败。");
+        }
+    }
+
+    private void assertExportReady(OnePageDraftEntity draft) {
+        if (!"SVG_READY".equals(draft.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "SVG is not validation-ready. Fix it before exporting PPTX.");
         }
     }
 
