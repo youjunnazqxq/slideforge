@@ -35,10 +35,7 @@ public class AiSettingsController {
 
     @PostMapping("/test")
     public ApiResponse<AiConnectionTestResponse> testConnection(@RequestBody(required = false) UpdateAiSettingsRequest request) {
-        if (request != null) {
-            aiSettingsService.updateSettings(request);
-        }
-        return ApiResponse.success(aiSettingsService.testConnection());
+        return ApiResponse.success(aiSettingsService.testConnection(request));
     }
 
     @DeleteMapping("/key")

@@ -57,24 +57,28 @@ public class AiSettingsService {
         return toResponse(aiSettingsRepository.save(settings));
     }
 
-    public AiConnectionTestResponse testConnection() {
+    public AiConnectionTestResponse testConnection(UpdateAiSettingsRequest request) {
         AiSettings settings = getOrCreateSettings();
+        String baseUrl = request == null ? settings.getBaseUrl() : request.baseUrl();
+        String model = request == null ? settings.getModel() : request.model();
+        String apiKey = resolveApiKey(settings, request);
 
-        if (!isConfigured(settings)) {
+        if (!StringUtils.hasText(baseUrl) || !StringUtils.hasText(apiKey) || !StringUtils.hasText(model)) {
             return new AiConnectionTestResponse(false, "AI 配置不完整，请先填写 Base URL、API Key 和模型名称。");
         }
 
-        secretCryptoService.decrypt(settings.getEncryptedApiKey());
         aiProviderClient.chat(new AiChatRequest(
                 LOCAL_USER_ID,
-                settings.getModel(),
+                baseUrl,
+                apiKey,
+                model,
                 List.of(new AiMessage("user", "Return the word OK only.")),
                 0.0,
                 64,
                 "text"
         ));
 
-        return new AiConnectionTestResponse(true, "AI Provider Adapter 调用成功；真实模型请求可在该适配器中接入。");
+        return new AiConnectionTestResponse(true, "AI 模型连接成功。");
     }
 
     private AiSettings getOrCreateSettings() {
@@ -98,6 +102,18 @@ public class AiSettingsService {
         return StringUtils.hasText(settings.getBaseUrl())
                 && StringUtils.hasText(settings.getEncryptedApiKey())
                 && StringUtils.hasText(settings.getModel());
+    }
+
+    private String resolveApiKey(AiSettings settings, UpdateAiSettingsRequest request) {
+        if (request != null && StringUtils.hasText(request.apiKey())) {
+            return request.apiKey();
+        }
+
+        if (!StringUtils.hasText(settings.getEncryptedApiKey())) {
+            return "";
+        }
+
+        return secretCryptoService.decrypt(settings.getEncryptedApiKey());
     }
 
     private String maskApiKey(String value) {
