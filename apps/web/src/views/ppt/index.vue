@@ -242,6 +242,12 @@
                   <el-input v-model="block.type" size="small" />
                 </div>
                 <el-input v-model="block.content" :rows="4" resize="none" type="textarea" />
+                <el-input
+                  :model-value="block.sourceIds.join(', ')"
+                  size="small"
+                  placeholder="source ids"
+                  @update:model-value="(value: string) => block.sourceIds = splitSourceIds(value)"
+                />
               </article>
             </div>
             <div class="stage-actions">
@@ -561,6 +567,13 @@ async function runAction(action: () => Promise<unknown>) {
   } catch {
     ElMessage.error(draftStore.errorMessage || '操作失败')
   }
+}
+
+function splitSourceIds(value: string) {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
 }
 
 function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {

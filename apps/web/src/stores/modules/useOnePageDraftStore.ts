@@ -57,6 +57,7 @@ export interface PagePlanBlock {
   type: string
   title: string
   content: string
+  sourceIds: string[]
 }
 
 export interface PagePlan {
@@ -159,6 +160,7 @@ export const useOnePageDraftStore = defineStore(
           type: 'conclusion',
           title: '核心判断',
           content: '一页闭环可行性高，适合作为第一阶段目标。',
+          sourceIds: [],
         },
         {
           id: 'byok',
@@ -166,6 +168,7 @@ export const useOnePageDraftStore = defineStore(
           type: 'capability',
           title: 'BYOK 接入',
           content: '用户使用自己的 OpenAI-compatible API，由后端代理调用。',
+          sourceIds: [],
         },
         {
           id: 'risk',
@@ -173,6 +176,7 @@ export const useOnePageDraftStore = defineStore(
           type: 'risk',
           title: '主要风险',
           content: '生成质量不稳定、SVG 易重叠、资料来源不充分。',
+          sourceIds: [],
         },
       ],
     })
@@ -495,6 +499,7 @@ export const useOnePageDraftStore = defineStore(
         type: block.type,
         title: block.title,
         content: block.content,
+        sourceIds: block.sourceIds ?? [],
       }))
     }
 
@@ -527,6 +532,7 @@ export const useOnePageDraftStore = defineStore(
           type: block.type,
           title: block.title,
           content: block.content,
+          sourceIds: block.sourceIds ?? [],
         })),
       })
     }

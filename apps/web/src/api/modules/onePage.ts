@@ -66,6 +66,7 @@ export interface PagePlanResponse {
     type: string
     title: string
     content: string
+    sourceIds: string[]
   }>
   speakerIntent: string
   layoutIntent: string

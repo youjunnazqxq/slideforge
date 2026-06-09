@@ -17,7 +17,8 @@ public record PagePlan(
             String role,
             String type,
             String title,
-            String content
+            String content,
+            List<String> sourceIds
     ) {
     }
 }

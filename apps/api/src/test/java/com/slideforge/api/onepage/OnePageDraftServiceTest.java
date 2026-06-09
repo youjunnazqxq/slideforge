@@ -36,7 +36,7 @@ class OnePageDraftServiceTest {
                 "Bento slide",
                 "Use a staged workflow.",
                 "Keep the workflow controllable.",
-                List.of(new PagePlan.ContentBlock("primary", "primary", "conclusion", "Workflow", "Stage the work.")),
+                List.of(new PagePlan.ContentBlock("primary", "primary", "conclusion", "Workflow", "Stage the work.", List.of())),
                 "Explain why staged generation reduces risk.",
                 "Bento grid",
                 "Professional"

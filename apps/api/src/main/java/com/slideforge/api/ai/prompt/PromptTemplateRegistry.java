@@ -140,6 +140,7 @@ public class PromptTemplateRegistry {
                             每个 contentBlocks.id 必须稳定、简短、可作为后续 visualSpec.cards.blockId 引用。
                             不要写长段落；每个 content 控制在 45 个汉字或 22 个英文词以内，适合直接上屏。
                             如果 researchPack.limitations 存在，请把不确定性转化为风险/假设类辅助块，而不是编造结论。
+                            如果内容块来自 researchPack.evidence 或 sources，请填写 sourceIds；没有来源则使用空数组。
 
                             brief JSON：
                             {{requirementBriefJson}}
@@ -153,7 +154,7 @@ public class PromptTemplateRegistry {
                               "coreMessage": "string",
                               "audienceTakeaway": "string",
                               "contentBlocks": [
-                                {"id": "primary", "role": "primary", "type": "conclusion", "title": "string", "content": "string"}
+                                {"id": "primary", "role": "primary", "type": "conclusion", "title": "string", "content": "string", "sourceIds": []}
                               ],
                               "speakerIntent": "string",
                               "layoutIntent": "string",

@@ -109,7 +109,7 @@ class DeckDraftServiceTest {
                 "MVP Loop",
                 "Validate the staged workflow.",
                 "Start with a controllable loop.",
-                List.of(new PagePlan.ContentBlock("primary", "primary", "conclusion", "MVP", "Ship the loop.")),
+                List.of(new PagePlan.ContentBlock("primary", "primary", "conclusion", "MVP", "Ship the loop.", List.of())),
                 "Show why the MVP loop is the first proof point.",
                 "Bento grid",
                 "Professional"
