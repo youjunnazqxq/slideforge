@@ -85,5 +85,52 @@ public class WorkflowRun {
         this.durationMs = Math.toIntExact(Math.min(durationMs, Integer.MAX_VALUE));
         this.createdAt = LocalDateTime.now();
     }
-}
 
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getDraftId() {
+        return draftId;
+    }
+
+    public String getStage() {
+        return stage;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public String getPromptKey() {
+        return promptKey;
+    }
+
+    public String getPromptVersion() {
+        return promptVersion;
+    }
+
+    public String getInputJson() {
+        return inputJson;
+    }
+
+    public String getOutputJson() {
+        return outputJson;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public Integer getDurationMs() {
+        return durationMs;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+}

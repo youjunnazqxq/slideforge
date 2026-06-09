@@ -20,6 +20,7 @@ import {
   type ResearchPackResponse,
   type VisualSpecResponse,
 } from '@/api/modules/onePage'
+import { getWorkflowRuns, type WorkflowRunResponse } from '@/api/modules/workflow'
 
 export type WorkflowStage = 'consult' | 'brief' | 'research' | 'pagePlan' | 'visualSpec' | 'svg'
 export type WorkflowStatus = 'pending' | 'running' | 'done' | 'failed'
@@ -102,6 +103,7 @@ export const useOnePageDraftStore = defineStore(
     const loadingStage = ref<LoadingStage>('')
     const errorMessage = ref('')
     const validationWarnings = ref<string[]>([])
+    const workflowRuns = ref<WorkflowRunResponse[]>([])
     const researchMode = ref<'model-only' | 'search-assisted'>('model-only')
     const rightPanelCollapsed = ref(false)
     const userPrompt = ref('我想做一页关于 AI PPT Agent 项目可行性的汇报页，给团队内部立项讨论用。')
@@ -234,6 +236,7 @@ export const useOnePageDraftStore = defineStore(
       await runWithLoading('create', async () => {
         const response = await getOnePageDraft(nextDraftId)
         applyDraftResponse(response.data)
+        await loadWorkflowRuns(response.data.draftId)
       })
     }
 
@@ -247,6 +250,7 @@ export const useOnePageDraftStore = defineStore(
 
         assistantMessage.value = response.data.message
         markStep('consult', response.data.readyForBrief ? 'done' : 'running')
+        await loadWorkflowRuns(id)
       })
     }
 
@@ -258,6 +262,7 @@ export const useOnePageDraftStore = defineStore(
         applyBrief(response.data)
         markStep('brief', 'done')
         setStage('brief')
+        await loadWorkflowRuns(id)
       })
     }
 
@@ -270,6 +275,7 @@ export const useOnePageDraftStore = defineStore(
         applyResearch(response.data)
         markStep('research', 'done')
         setStage('research')
+        await loadWorkflowRuns(id)
       })
     }
 
@@ -281,6 +287,7 @@ export const useOnePageDraftStore = defineStore(
         applyPagePlan(response.data)
         markStep('pagePlan', 'done')
         setStage('pagePlan')
+        await loadWorkflowRuns(id)
       })
     }
 
@@ -293,6 +300,7 @@ export const useOnePageDraftStore = defineStore(
         applyVisualSpec(response.data)
         markStep('visualSpec', 'done')
         setStage('visualSpec')
+        await loadWorkflowRuns(id)
       })
     }
 
@@ -304,6 +312,7 @@ export const useOnePageDraftStore = defineStore(
         applyBrief(response.data)
         markStep('brief', 'done')
         setStage('brief')
+        await loadWorkflowRuns(id)
       })
     }
 
@@ -315,6 +324,7 @@ export const useOnePageDraftStore = defineStore(
         applyPagePlan(response.data)
         markStep('pagePlan', 'done')
         setStage('pagePlan')
+        await loadWorkflowRuns(id)
       })
     }
 
@@ -326,6 +336,7 @@ export const useOnePageDraftStore = defineStore(
         applyVisualSpec(response.data)
         markStep('visualSpec', 'done')
         setStage('visualSpec')
+        await loadWorkflowRuns(id)
       })
     }
 
@@ -340,7 +351,18 @@ export const useOnePageDraftStore = defineStore(
         validationWarnings.value = response.data.validationReport.warnings
         markStep('svg', response.data.validationReport.valid ? 'done' : 'failed')
         setStage('svg')
+        await loadWorkflowRuns(id)
       })
+    }
+
+    async function loadWorkflowRuns(nextDraftId = draftId.value) {
+      if (!nextDraftId) {
+        workflowRuns.value = []
+        return
+      }
+
+      const response = await getWorkflowRuns(nextDraftId)
+      workflowRuns.value = response.data
     }
 
     async function exportPptx() {
@@ -515,6 +537,7 @@ export const useOnePageDraftStore = defineStore(
       svgContent,
       userPrompt,
       visualSpec,
+      workflowRuns,
       consult,
       createDraft,
       generateBrief,
@@ -526,6 +549,7 @@ export const useOnePageDraftStore = defineStore(
       saveVisualSpec,
       exportPptx,
       loadDraft,
+      loadWorkflowRuns,
       regenerateSvg,
       setStage,
       toggleRightPanel,

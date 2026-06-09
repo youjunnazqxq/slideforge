@@ -368,6 +368,20 @@
           </button>
         </div>
 
+        <section v-if="draftStore.workflowRuns.length" class="prompt-trace">
+          <header>
+            <p>Prompt Trace</p>
+            <el-button size="small" text @click="runAction(draftStore.loadWorkflowRuns)">刷新</el-button>
+          </header>
+          <article v-for="run in draftStore.workflowRuns.slice(0, 5)" :key="run.id">
+            <div>
+              <strong>{{ run.stage }}</strong>
+              <span>{{ run.promptKey || 'manual' }}</span>
+            </div>
+            <em>{{ run.status }} · {{ run.durationMs || 0 }}ms</em>
+          </article>
+        </section>
+
         <section class="assistant-result">
           <p>P4</p>
           <h4>{{ draftStore.pagePlan.slideTitle }}</h4>
@@ -1102,6 +1116,58 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
     color: #2563eb;
     font-size: 11px;
     text-transform: uppercase;
+  }
+}
+
+.prompt-trace {
+  display: grid;
+  gap: 8px;
+  overflow: auto;
+  max-height: 220px;
+
+  header,
+  article {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  header p,
+  strong,
+  span,
+  em {
+    margin: 0;
+  }
+
+  header p {
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  article {
+    padding: 10px;
+    border: 1px solid #edf2f7;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 13px;
+  }
+
+  span,
+  em {
+    color: #6b7280;
+    font-size: 11px;
+    font-style: normal;
   }
 }
 
