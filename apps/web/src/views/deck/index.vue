@@ -65,6 +65,17 @@
         type="error"
       />
 
+      <el-alert
+        v-if="!aiSettingsStore.isConfigured"
+        :closable="false"
+        title="AI provider is not configured"
+        type="warning"
+      >
+        <template #default>
+          <el-button size="small" type="warning" @click="router.push('/app/settings')">Open Settings</el-button>
+        </template>
+      </el-alert>
+
       <section class="deck-meta">
         <span>{{ deckStore.status }}</span>
         <span v-if="deckStore.deckId">Deck {{ deckStore.deckId.slice(0, 8) }}</span>
@@ -262,13 +273,14 @@
 
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { createOnePageDraftFromDeckSlide } from '@/api/modules/deck'
-import { useDeckDraftStore, useOnePageDraftStore } from '@/stores'
+import { useAiSettingsStore, useDeckDraftStore, useOnePageDraftStore } from '@/stores'
 
 const deckStore = useDeckDraftStore()
+const aiSettingsStore = useAiSettingsStore()
 const onePageStore = useOnePageDraftStore()
 const router = useRouter()
 const creatingSlideId = ref('')
@@ -285,6 +297,10 @@ const pagePlanReadyCount = computed(
 const visualSpecReadyCount = computed(
   () => deckStore.generatedDrafts.filter((draft) => ['VISUAL_SPEC_READY', 'SVG_READY'].includes(draft.status)).length,
 )
+
+onMounted(() => {
+  aiSettingsStore.loadSettings().catch(() => undefined)
+})
 
 const visibleStickyNotes = computed(() => {
   if (deckStore.stickyNotes.length) {

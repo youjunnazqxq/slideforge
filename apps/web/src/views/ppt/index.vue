@@ -77,6 +77,18 @@
         type="error"
       />
 
+      <el-alert
+        v-if="!aiSettingsStore.isConfigured"
+        class="workspace-alert"
+        :closable="false"
+        title="AI provider is not configured"
+        type="warning"
+      >
+        <template #default>
+          <el-button size="small" type="warning" @click="router.push('/app/settings')">Open Settings</el-button>
+        </template>
+      </el-alert>
+
       <section class="stage-tabs">
         <button
           v-for="step in draftStore.steps"
@@ -467,12 +479,15 @@ import {
   Refresh,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import type { CSSProperties } from 'vue'
+import { onMounted, type CSSProperties } from 'vue'
+import { useRouter } from 'vue-router'
 
-import { useOnePageDraftStore } from '@/stores'
+import { useAiSettingsStore, useOnePageDraftStore } from '@/stores'
 import type { RequirementBrief, VisualSpec } from '@/stores'
 
 const draftStore = useOnePageDraftStore()
+const aiSettingsStore = useAiSettingsStore()
+const router = useRouter()
 
 const briefFields: Array<{
   key: keyof RequirementBrief
@@ -488,6 +503,10 @@ const briefFields: Array<{
   { key: 'avoid', label: '避免表达', rows: 3 },
   { key: 'tone', label: '语气风格', rows: 2 },
 ]
+
+onMounted(() => {
+  aiSettingsStore.loadSettings().catch(() => undefined)
+})
 
 function downloadSvg() {
   const blob = new Blob([draftStore.svgContent], {
