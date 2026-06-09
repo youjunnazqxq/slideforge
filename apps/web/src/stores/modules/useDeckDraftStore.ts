@@ -263,6 +263,21 @@ export const useDeckDraftStore = defineStore(
       })
     }
 
+    async function retryFailedSlideSvgs() {
+      const failedDrafts = generatedDrafts.value.filter((draft) => draft.status === 'FAILED')
+
+      if (!failedDrafts.length) {
+        return
+      }
+
+      await runWithLoading('outline', async () => {
+        for (const draft of failedDrafts) {
+          const response = await createSvgDraftFromDeckSlide(deckId.value, draft.slideId)
+          generatedDrafts.value = upsertGeneratedDraft(response.data)
+        }
+      })
+    }
+
     async function exportDeckPptx() {
       if (!generatedDrafts.value.length || generatedDrafts.value.some((draft) => draft.status !== 'SVG_READY')) {
         await generateAllSlideSvgs()
@@ -354,6 +369,7 @@ export const useDeckDraftStore = defineStore(
       moveStickyNote,
       reorderStickyNotes,
       retrySlideSvg,
+      retryFailedSlideSvgs,
       saveStickyNotes,
     }
   },

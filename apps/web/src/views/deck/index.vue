@@ -70,6 +70,7 @@
         <span v-if="deckStore.deckId">Deck {{ deckStore.deckId.slice(0, 8) }}</span>
         <span v-if="deckStore.generatedDrafts.length">已生成 {{ deckStore.generatedDrafts.length }} 个单页草稿</span>
         <span v-if="svgReadyCount">SVG ready {{ svgReadyCount }} / {{ deckStore.generatedDrafts.length }}</span>
+        <span v-if="failedCount">Failed {{ failedCount }}</span>
       </section>
 
       <section v-if="deckStore.workflowRuns.length" class="deck-trace">
@@ -194,6 +195,16 @@
         <header>
           <p>Generated Drafts</p>
           <h2>逐页生成结果</h2>
+          <el-button
+            v-if="failedCount"
+            :loading="deckStore.loadingStage === 'outline'"
+            size="small"
+            type="primary"
+            plain
+            @click="runAction(retryFailedSvgs)"
+          >
+            Retry Failed
+          </el-button>
         </header>
 
         <div class="generated-drafts__list">
@@ -245,6 +256,7 @@ const creatingSlideId = ref('')
 const draggingSlideId = ref('')
 
 const svgReadyCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'SVG_READY').length)
+const failedCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'FAILED').length)
 
 const visibleStickyNotes = computed(() => {
   if (deckStore.stickyNotes.length) {
@@ -333,6 +345,11 @@ async function retrySlideSvg(slideId: string) {
   if (draft?.status === 'SVG_READY') {
     ElMessage.success('本页 SVG 已重新生成')
   }
+}
+
+async function retryFailedSvgs() {
+  await deckStore.retryFailedSlideSvgs()
+  ElMessage.success(`Retry complete: ${svgReadyCount.value} SVG ready`)
 }
 
 async function downloadDeckPptx() {
