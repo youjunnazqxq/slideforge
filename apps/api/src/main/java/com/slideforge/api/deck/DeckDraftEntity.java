@@ -23,6 +23,9 @@ public class DeckDraftEntity {
     @Column(name = "outline_json")
     private String outlineJson;
 
+    @Column(name = "research_pack_json")
+    private String researchPackJson;
+
     @Column(name = "sticky_notes_json")
     private String stickyNotesJson;
 
@@ -65,6 +68,15 @@ public class DeckDraftEntity {
 
     public void setOutlineJson(String outlineJson) {
         this.outlineJson = outlineJson;
+        touch();
+    }
+
+    public String getResearchPackJson() {
+        return researchPackJson;
+    }
+
+    public void setResearchPackJson(String researchPackJson) {
+        this.researchPackJson = researchPackJson;
         touch();
     }
 

@@ -18,6 +18,16 @@
         <el-button :loading="deckStore.loadingStage === 'create'" plain @click="runAction(deckStore.createDraft)">
           创建草稿
         </el-button>
+        <el-segmented
+          v-model="deckStore.researchMode"
+          :options="[
+            { label: 'Model', value: 'model-only' },
+            { label: 'Search', value: 'search-assisted' },
+          ]"
+        />
+        <el-button :loading="deckStore.loadingStage === 'outline'" plain @click="runAction(deckStore.generateDeckResearch)">
+          Research
+        </el-button>
         <el-button
           :loading="deckStore.loadingStage === 'outline'"
           type="primary"
@@ -70,6 +80,29 @@
         <p>核心论点</p>
         <h2>{{ deckStore.outline.coreThesis }}</h2>
         <span>{{ deckStore.outline.audience }} / {{ deckStore.outline.scenario }}</span>
+      </section>
+
+      <section v-if="deckStore.researchPack.summary" class="research-pack">
+        <header>
+          <div>
+            <p>Research Pack</p>
+            <h2>{{ deckStore.researchPack.summary }}</h2>
+          </div>
+          <el-tag>{{ deckStore.researchPack.mode }}</el-tag>
+        </header>
+        <div class="research-pack__points">
+          <article v-for="point in deckStore.researchPack.keyPoints" :key="point">{{ point }}</article>
+        </div>
+        <div v-if="deckStore.researchPack.sources.length" class="research-pack__sources">
+          <a
+            v-for="source in deckStore.researchPack.sources"
+            :key="source.id || source.url"
+            :href="source.url"
+            target="_blank"
+          >
+            {{ source.title || source.url }}
+          </a>
+        </div>
       </section>
 
       <section class="outline-grid">
@@ -400,6 +433,61 @@ async function downloadDeckPptx() {
   span {
     color: #475569;
   }
+}
+
+.research-pack {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  p,
+  h2 {
+    margin: 0;
+  }
+
+  p {
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  h2 {
+    margin-top: 6px;
+    color: #111827;
+    font-size: 18px;
+    line-height: 1.45;
+  }
+}
+
+.research-pack__points,
+.research-pack__sources {
+  display: grid;
+  gap: 8px;
+}
+
+.research-pack__points article {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #374151;
+  line-height: 1.55;
+}
+
+.research-pack__sources a {
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .outline-grid,

@@ -8,6 +8,8 @@ import com.slideforge.api.deck.dto.DeckOutline;
 import com.slideforge.api.deck.dto.DeckSlideDraftResponse;
 import com.slideforge.api.deck.dto.SlideStickyNote;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
+import com.slideforge.api.onepage.dto.GenerateResearchRequest;
+import com.slideforge.api.onepage.dto.ResearchPack;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -44,6 +46,15 @@ public class DeckDraftController {
     @PostMapping("/{deckId}/outline")
     public ApiResponse<DeckOutline> generateOutline(@PathVariable String deckId) {
         return ApiResponse.success(deckDraftService.generateOutline(deckId));
+    }
+
+    @PostMapping("/{deckId}/research")
+    public ApiResponse<ResearchPack> generateResearch(
+            @PathVariable String deckId,
+            @RequestBody(required = false) GenerateResearchRequest request
+    ) {
+        String mode = request == null ? "model-only" : request.normalizedMode();
+        return ApiResponse.success(deckDraftService.generateResearch(deckId, mode));
     }
 
     @PutMapping("/{deckId}/sticky-notes")

@@ -24,6 +24,26 @@ export interface DeckSlideDraftResponse {
   errorMessage?: string
 }
 
+export interface DeckResearchPackResponse {
+  mode: string
+  summary: string
+  keyPoints: string[]
+  evidence: Array<{
+    claim: string
+    support: string
+    sourceIds: string[]
+  }>
+  sources: Array<{
+    id: string
+    title: string
+    url: string
+    publisher: string
+    publishedAt: string
+    snippet: string
+  }>
+  limitations: string[]
+}
+
 export interface DeckOutlineResponse {
   title: string
   audience: string
@@ -58,6 +78,7 @@ export interface DeckDraftResponse {
   deckId: string
   status: string
   initialPrompt: string
+  researchPack?: DeckResearchPackResponse
   outline?: DeckOutlineResponse
   stickyNotes: SlideStickyNoteResponse[]
   generatedDrafts: DeckSlideDraftResponse[]
@@ -75,6 +96,10 @@ export function getDeckDraft(deckId: string) {
 
 export function generateDeckOutline(deckId: string) {
   return request.post<DeckOutlineResponse>(`${servicePrefix.decks}/${deckId}/outline`)
+}
+
+export function generateDeckResearch(deckId: string, data?: { mode: 'model-only' | 'search-assisted' }) {
+  return request.post<DeckResearchPackResponse>(`${servicePrefix.decks}/${deckId}/research`, data)
 }
 
 export function createOnePageDraftFromDeckSlide(deckId: string, slideId: string) {

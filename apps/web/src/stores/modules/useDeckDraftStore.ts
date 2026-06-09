@@ -8,11 +8,13 @@ import {
   createSvgDraftFromDeckSlide,
   createSvgDraftsFromDeck,
   deleteDeckStickyNote,
+  generateDeckResearch as requestGenerateDeckResearch,
   generateDeckOutline as requestGenerateDeckOutline,
   getDeckDraft,
   saveDeckStickyNotes,
   type DeckDraftResponse,
   type DeckOutlineResponse,
+  type DeckResearchPackResponse,
   type DeckSlideDraftResponse,
   type SlideStickyNoteResponse,
 } from '@/api/modules/deck'
@@ -26,8 +28,17 @@ export const useDeckDraftStore = defineStore(
     const loadingStage = ref<'create' | 'outline' | ''>('')
     const errorMessage = ref('')
     const initialPrompt = ref('我想做一套关于 AI PPT Agent 项目可行性的内部立项汇报，目标是说服团队先投入一页 MVP。')
+    const researchMode = ref<'model-only' | 'search-assisted'>('model-only')
     const stickyNotes = ref<SlideStickyNoteResponse[]>([])
     const generatedDrafts = ref<DeckSlideDraftResponse[]>([])
+    const researchPack = ref<DeckResearchPackResponse>({
+      mode: 'model-only',
+      summary: '',
+      keyPoints: [],
+      evidence: [],
+      sources: [],
+      limitations: [],
+    })
     const outline = reactive<DeckOutlineResponse>({
       title: 'AI PPT Agent 项目可行性汇报',
       audience: '团队内部成员',
@@ -94,6 +105,16 @@ export const useDeckDraftStore = defineStore(
         const response = await requestGenerateDeckOutline(id)
         applyOutline(response.data)
         await loadDraft(id)
+      })
+    }
+
+    async function generateDeckResearch() {
+      const id = await ensureDeck()
+
+      await runWithLoading('outline', async () => {
+        const response = await requestGenerateDeckResearch(id, { mode: researchMode.value })
+        researchPack.value = response.data
+        status.value = 'RESEARCH_READY'
       })
     }
 
@@ -239,6 +260,7 @@ export const useDeckDraftStore = defineStore(
       status.value = draft.status
       initialPrompt.value = draft.initialPrompt || initialPrompt.value
       generatedDrafts.value = draft.generatedDrafts ?? []
+      researchPack.value = draft.researchPack ?? researchPack.value
 
       if (draft.outline) {
         applyOutline(draft.outline)
@@ -276,6 +298,8 @@ export const useDeckDraftStore = defineStore(
       isLoading,
       loadingStage,
       outline,
+      researchMode,
+      researchPack,
       status,
       stickyNotes,
       addStickyNote,
@@ -285,6 +309,7 @@ export const useDeckDraftStore = defineStore(
       exportDeckPptx,
       generateAllSlideSvgs,
       generateDeckOutline,
+      generateDeckResearch,
       loadDraft,
       moveStickyNote,
       reorderStickyNotes,
@@ -295,7 +320,7 @@ export const useDeckDraftStore = defineStore(
   {
     persist: {
       key: 'slideforge:deck-draft',
-      paths: ['deckId', 'status', 'initialPrompt', 'outline', 'stickyNotes', 'generatedDrafts'],
+      paths: ['deckId', 'status', 'initialPrompt', 'researchMode', 'researchPack', 'outline', 'stickyNotes', 'generatedDrafts'],
     },
   },
 )

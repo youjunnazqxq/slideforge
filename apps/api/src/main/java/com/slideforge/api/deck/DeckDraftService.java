@@ -12,11 +12,17 @@ import com.slideforge.api.deck.dto.DeckOutline;
 import com.slideforge.api.deck.dto.DeckSlideDraftResponse;
 import com.slideforge.api.deck.dto.SlideStickyNote;
 import com.slideforge.api.onepage.OnePageDraftService;
+import com.slideforge.api.onepage.OnePagePromptService;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
+import com.slideforge.api.onepage.dto.ResearchPack;
+import com.slideforge.api.research.SearchClient;
+import com.slideforge.api.research.SearchResult;
 import com.slideforge.api.workflow.WorkflowRun;
 import com.slideforge.api.workflow.WorkflowRunRepository;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -31,6 +37,8 @@ public class DeckDraftService {
     private final DeckPromptService deckPromptService;
     private final AiRuntimeService aiRuntimeService;
     private final OnePageDraftService onePageDraftService;
+    private final OnePagePromptService onePagePromptService;
+    private final SearchClient searchClient;
     private final WorkflowRunRepository workflowRunRepository;
     private final ObjectMapper objectMapper;
 
@@ -39,6 +47,8 @@ public class DeckDraftService {
             DeckPromptService deckPromptService,
             AiRuntimeService aiRuntimeService,
             OnePageDraftService onePageDraftService,
+            OnePagePromptService onePagePromptService,
+            SearchClient searchClient,
             WorkflowRunRepository workflowRunRepository,
             ObjectMapper objectMapper
     ) {
@@ -46,6 +56,8 @@ public class DeckDraftService {
         this.deckPromptService = deckPromptService;
         this.aiRuntimeService = aiRuntimeService;
         this.onePageDraftService = onePageDraftService;
+        this.onePagePromptService = onePagePromptService;
+        this.searchClient = searchClient;
         this.workflowRunRepository = workflowRunRepository;
         this.objectMapper = objectMapper;
     }
@@ -62,10 +74,12 @@ public class DeckDraftService {
     public DeckOutline generateOutline(String deckId) {
         long start = System.currentTimeMillis();
         DeckDraftEntity draft = getExistingDraft(deckId);
+        ensureResearch(draft);
+        draft = getExistingDraft(deckId);
         draft.setStatus("OUTLINE_RUNNING");
         deckDraftRepository.save(draft);
 
-        RenderedPrompt prompt = deckPromptService.outline(draft.getInitialPrompt());
+        RenderedPrompt prompt = deckPromptService.outline(draft.getInitialPrompt() + "\n\nResearch pack JSON:\n" + draft.getResearchPackJson());
         AiChatResponse response = aiRuntimeService.chat(
                 LOCAL_USER_ID,
                 prompt.messages(),
@@ -79,8 +93,34 @@ public class DeckDraftService {
         draft.setStickyNotesJson(toJson(stickyNotes));
         draft.setStatus("OUTLINE_READY");
         deckDraftRepository.save(draft);
-        recordWorkflow(draft, prompt, toJson(outline), start);
+        recordWorkflow(draft, "deckOutline", prompt, toJson(outline), start);
         return outline;
+    }
+
+    public ResearchPack generateResearch(String deckId, String requestedMode) {
+        long start = System.currentTimeMillis();
+        DeckDraftEntity draft = getExistingDraft(deckId);
+        String researchMode = "search-assisted".equalsIgnoreCase(requestedMode) ? "search-assisted" : "model-only";
+        List<SearchResult> sources = collectDeckSources(draft, researchMode);
+
+        if ("search-assisted".equals(researchMode) && sources.isEmpty()) {
+            researchMode = "model-only";
+        }
+
+        RenderedPrompt prompt = onePagePromptService.research(deckBriefJson(draft), researchMode, toJson(sources));
+        AiChatResponse response = aiRuntimeService.chat(
+                LOCAL_USER_ID,
+                prompt.messages(),
+                prompt.responseFormat(),
+                prompt.maxTokens()
+        );
+        ResearchPack researchPack = normalizeResearchPack(parseModelJson(response.content(), ResearchPack.class), researchMode, sources);
+
+        draft.setResearchPackJson(toJson(researchPack));
+        draft.setStatus("RESEARCH_READY");
+        deckDraftRepository.save(draft);
+        recordWorkflow(draft, "deckResearch", prompt, toJson(researchPack), start);
+        return researchPack;
     }
 
     public List<SlideStickyNote> saveStickyNotes(String deckId, List<SlideStickyNote> stickyNotes) {
@@ -288,6 +328,71 @@ public class DeckDraftService {
         return notes.stream()
                 .sorted(java.util.Comparator.comparingInt(SlideStickyNote::order))
                 .toList();
+    }
+
+    private void ensureResearch(DeckDraftEntity draft) {
+        if (draft.getResearchPackJson() == null) {
+            generateResearch(draft.getId().toString(), "model-only");
+        }
+    }
+
+    private List<SearchResult> collectDeckSources(DeckDraftEntity draft, String researchMode) {
+        if (!"search-assisted".equals(researchMode) || !searchClient.available()) {
+            return List.of();
+        }
+
+        Map<String, SearchResult> results = new LinkedHashMap<>();
+        searchClient.search(draft.getInitialPrompt()).stream()
+                .limit(8)
+                .forEach(result -> results.putIfAbsent(result.url(), result));
+        return results.values().stream()
+                .limit(8)
+                .toList();
+    }
+
+    private String deckBriefJson(DeckDraftEntity draft) {
+        return toJson(Map.of(
+                "topic", draft.getInitialPrompt(),
+                "audience", "",
+                "scenario", "",
+                "goal", "Create a complete presentation deck.",
+                "coreConclusion", "",
+                "tone", "professional",
+                "mustInclude", List.of(),
+                "avoid", List.of(),
+                "language", "zh-CN",
+                "canvasRatio", "16:9"
+        ));
+    }
+
+    private ResearchPack normalizeResearchPack(ResearchPack pack, String researchMode, List<SearchResult> sources) {
+        List<ResearchPack.Source> normalizedSources = "search-assisted".equals(researchMode)
+                ? sources.stream()
+                        .map(source -> new ResearchPack.Source(
+                                source.id(),
+                                source.title(),
+                                source.url(),
+                                source.publisher(),
+                                source.publishedAt(),
+                                source.snippet()
+                        ))
+                        .toList()
+                : List.of();
+        List<String> limitations = pack.limitations() == null ? List.of() : pack.limitations();
+
+        if ("model-only".equals(researchMode) && limitations.stream().noneMatch(item -> item.contains("model-only"))) {
+            limitations = new ArrayList<>(limitations);
+            limitations.add("model-only research pack; no external sources were attached.");
+        }
+
+        return new ResearchPack(
+                researchMode,
+                pack.summary(),
+                pack.keyPoints() == null ? List.of() : pack.keyPoints(),
+                pack.evidence() == null ? List.of() : pack.evidence(),
+                normalizedSources,
+                limitations
+        );
     }
 
     private DeckOutline normalizeOutline(DeckOutline outline, String initialPrompt) {
@@ -530,11 +635,11 @@ public class DeckDraftService {
         }
     }
 
-    private void recordWorkflow(DeckDraftEntity draft, RenderedPrompt prompt, String outputJson, long start) {
+    private void recordWorkflow(DeckDraftEntity draft, String stage, RenderedPrompt prompt, String outputJson, long start) {
         workflowRunRepository.save(new WorkflowRun(
                 LOCAL_USER_ID,
                 draft.getId(),
-                "deckOutline",
+                stage,
                 "user-configured",
                 prompt.key(),
                 prompt.renderedUserPrompt(),
@@ -550,6 +655,7 @@ public class DeckDraftService {
                 draft.getId().toString(),
                 draft.getStatus(),
                 draft.getInitialPrompt(),
+                fromJson(draft.getResearchPackJson(), ResearchPack.class),
                 fromJson(draft.getOutlineJson(), DeckOutline.class),
                 stickyNotesFromJson(draft.getStickyNotesJson()),
                 generatedDraftsFromJson(draft.getGeneratedDraftsJson())
