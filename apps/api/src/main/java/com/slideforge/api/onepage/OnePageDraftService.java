@@ -3,8 +3,8 @@ package com.slideforge.api.onepage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.slideforge.api.ai.AiRuntimeService;
+import com.slideforge.api.ai.prompt.RenderedPrompt;
 import com.slideforge.api.ai.provider.AiChatResponse;
-import com.slideforge.api.ai.provider.AiMessage;
 import com.slideforge.api.onepage.dto.ConsultResponse;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
 import com.slideforge.api.onepage.dto.OnePageDraftResponse;
@@ -32,6 +32,7 @@ public class OnePageDraftService {
     private final WorkflowRunRepository workflowRunRepository;
     private final SvgValidationService svgValidationService;
     private final AiRuntimeService aiRuntimeService;
+    private final OnePagePromptService onePagePromptService;
     private final ObjectMapper objectMapper;
 
     public OnePageDraftService(
@@ -39,12 +40,14 @@ public class OnePageDraftService {
             WorkflowRunRepository workflowRunRepository,
             SvgValidationService svgValidationService,
             AiRuntimeService aiRuntimeService,
+            OnePagePromptService onePagePromptService,
             ObjectMapper objectMapper
     ) {
         this.onePageDraftRepository = onePageDraftRepository;
         this.workflowRunRepository = workflowRunRepository;
         this.svgValidationService = svgValidationService;
         this.aiRuntimeService = aiRuntimeService;
+        this.onePagePromptService = onePagePromptService;
         this.objectMapper = objectMapper;
     }
 
@@ -63,67 +66,26 @@ public class OnePageDraftService {
         draft.setStatus("CONSULTING");
         onePageDraftRepository.save(draft);
 
-        String prompt = """
-                你是 SlideForge 的一页 PPT 需求顾问。请根据用户输入判断信息是否足够生成结构化 brief。
-                输出 2-4 句中文：先确认已理解的主题，再指出缺失信息；如果足够，请明确说可以生成 brief。
-
-                初始需求：
-                %s
-
-                用户补充：
-                %s
-                """.formatted(draft.getInitialPrompt(), message);
-
-        AiChatResponse response = aiRuntimeService.chat(
-                LOCAL_USER_ID,
-                List.of(new AiMessage("user", prompt)),
-                "text",
-                1024
-        );
+        RenderedPrompt prompt = onePagePromptService.consultant(draft.getInitialPrompt(), message);
+        AiChatResponse response = callPrompt(prompt);
 
         draft.setStatus("CONSULTED");
         onePageDraftRepository.save(draft);
-        recordWorkflow(draft, "consult", "consultant", prompt, response.content(), response, start, null);
+        recordWorkflow(draft, "consult", prompt, response.content(), start, null);
         return new ConsultResponse(response.content(), true);
     }
 
     public RequirementBrief generateBrief(String draftId) {
         long start = System.currentTimeMillis();
         OnePageDraftEntity draft = getExistingDraft(draftId);
-        String prompt = """
-                你是产品型 PPT 策划助手。请把用户需求整理成一页 PPT 的结构化 brief。
-                只返回 JSON，不要 Markdown，不要解释。
-
-                JSON 字段必须完全如下：
-                {
-                  "topic": "string",
-                  "audience": "string",
-                  "scenario": "string",
-                  "goal": "string",
-                  "coreConclusion": "string",
-                  "tone": "string",
-                  "mustInclude": ["string"],
-                  "avoid": ["string"],
-                  "language": "zh-CN",
-                  "canvasRatio": "16:9"
-                }
-
-                用户需求：
-                %s
-                """.formatted(draft.getInitialPrompt());
-
-        AiChatResponse response = aiRuntimeService.chat(
-                LOCAL_USER_ID,
-                List.of(new AiMessage("user", prompt)),
-                "json",
-                2048
-        );
+        RenderedPrompt prompt = onePagePromptService.brief(draft.getInitialPrompt());
+        AiChatResponse response = callPrompt(prompt);
         RequirementBrief brief = parseModelJson(response.content(), RequirementBrief.class);
 
         draft.setRequirementBriefJson(toJson(brief));
         draft.setStatus("BRIEF_READY");
         onePageDraftRepository.save(draft);
-        recordWorkflow(draft, "brief", "brief.extract", prompt, toJson(brief), response, start, null);
+        recordWorkflow(draft, "brief", prompt, toJson(brief), start, null);
         return brief;
     }
 
@@ -141,37 +103,14 @@ public class OnePageDraftService {
         ensureBrief(draft);
         draft = getExistingDraft(draftId);
 
-        String prompt = """
-                你是商业与产品资料研究助手。请基于 brief 生成 model-only researchPack。
-                当前没有联网搜索，所以不要编造 URL 或外部来源，sources 必须为空数组。
-                只返回 JSON，不要 Markdown，不要解释。
-
-                JSON 字段必须完全如下：
-                {
-                  "mode": "model-only",
-                  "summary": "string",
-                  "keyPoints": ["string"],
-                  "evidence": [{"claim": "string", "support": "string", "sourceIds": []}],
-                  "sources": [],
-                  "limitations": ["string"]
-                }
-
-                brief JSON：
-                %s
-                """.formatted(draft.getRequirementBriefJson());
-
-        AiChatResponse response = aiRuntimeService.chat(
-                LOCAL_USER_ID,
-                List.of(new AiMessage("user", prompt)),
-                "json",
-                3072
-        );
+        RenderedPrompt prompt = onePagePromptService.research(draft.getRequirementBriefJson());
+        AiChatResponse response = callPrompt(prompt);
         ResearchPack researchPack = parseModelJson(response.content(), ResearchPack.class);
 
         draft.setResearchPackJson(toJson(researchPack));
         draft.setStatus("RESEARCH_READY");
         onePageDraftRepository.save(draft);
-        recordWorkflow(draft, "research", "research.collect", prompt, toJson(researchPack), response, start, null);
+        recordWorkflow(draft, "research", prompt, toJson(researchPack), start, null);
         return researchPack;
     }
 
@@ -182,42 +121,18 @@ public class OnePageDraftService {
         ensureResearch(draft);
         draft = getExistingDraft(draftId);
 
-        String prompt = """
-                你是一页 PPT 信息架构师。请基于 brief 和 researchPack 生成一页 16:9 PPT 的 pagePlan。
-                内容应适合 Bento Grid：一个核心结论块，2-4 个支撑块。只返回 JSON，不要 Markdown，不要解释。
-
-                JSON 字段必须完全如下：
-                {
-                  "slideTitle": "string",
-                  "coreMessage": "string",
-                  "audienceTakeaway": "string",
-                  "contentBlocks": [
-                    {"id": "primary", "role": "primary", "type": "conclusion", "title": "string", "content": "string"}
-                  ],
-                  "layoutIntent": "string",
-                  "visualStyle": "string"
-                }
-
-                brief JSON：
-                %s
-
-                researchPack JSON：
-                %s
-                """.formatted(draft.getRequirementBriefJson(), draft.getResearchPackJson());
-
-        AiChatResponse response = aiRuntimeService.chat(
-                LOCAL_USER_ID,
-                List.of(new AiMessage("user", prompt)),
-                "json",
-                4096
+        RenderedPrompt prompt = onePagePromptService.pagePlan(
+                draft.getRequirementBriefJson(),
+                draft.getResearchPackJson()
         );
+        AiChatResponse response = callPrompt(prompt);
         PagePlan pagePlan = parseModelJson(response.content(), PagePlan.class);
 
         draft.setPagePlanJson(toJson(pagePlan));
         draft.setVisualSpecJson(toJson(generateVisualSpec()));
         draft.setStatus("PAGE_PLAN_READY");
         onePageDraftRepository.save(draft);
-        recordWorkflow(draft, "pagePlan", "page-plan.generate", prompt, toJson(pagePlan), response, start, null);
+        recordWorkflow(draft, "pagePlan", prompt, toJson(pagePlan), start, null);
         return pagePlan;
     }
 
@@ -239,24 +154,8 @@ public class OnePageDraftService {
             draft = getExistingDraft(draftId);
         }
 
-        String prompt = """
-                你是 SVG 信息设计师。请根据 pagePlan 生成一张 16:9、viewBox="0 0 1280 720" 的单页 PPT SVG。
-                严格要求：
-                - 只返回 <svg>...</svg>，不要 Markdown，不要解释。
-                - 禁止 script、foreignObject、外链图片、外链字体。
-                - 使用专业克制的 Bento Grid 布局，文本不要重叠。
-                - 背景、卡片、标题、正文必须都在 viewBox 内。
-
-                pagePlan JSON：
-                %s
-                """.formatted(draft.getPagePlanJson());
-
-        AiChatResponse response = aiRuntimeService.chat(
-                LOCAL_USER_ID,
-                List.of(new AiMessage("user", prompt)),
-                "text",
-                4096
-        );
+        RenderedPrompt prompt = onePagePromptService.svg(draft.getPagePlanJson());
+        AiChatResponse response = callPrompt(prompt);
         String rawSvg = extractSvg(response.content());
         String sanitizedSvg = svgValidationService.sanitize(rawSvg);
         ValidationReport validationReport = svgValidationService.validate(sanitizedSvg);
@@ -265,8 +164,17 @@ public class OnePageDraftService {
         draft.setValidationReportJson(toJson(validationReport));
         draft.setStatus(validationReport.valid() ? "SVG_READY" : "FAILED");
         onePageDraftRepository.save(draft);
-        recordWorkflow(draft, "svg", "svg.generate", prompt, sanitizedSvg, response, start, null);
+        recordWorkflow(draft, "svg", prompt, sanitizedSvg, start, null);
         return new SvgGenerateResponse(sanitizedSvg, validationReport);
+    }
+
+    private AiChatResponse callPrompt(RenderedPrompt prompt) {
+        return aiRuntimeService.chat(
+                LOCAL_USER_ID,
+                prompt.messages(),
+                prompt.responseFormat(),
+                prompt.maxTokens()
+        );
     }
 
     private void ensureBrief(OnePageDraftEntity draft) {
@@ -352,10 +260,8 @@ public class OnePageDraftService {
     private void recordWorkflow(
             OnePageDraftEntity draft,
             String stage,
-            String promptKey,
-            String inputJson,
+            RenderedPrompt prompt,
             String outputJson,
-            AiChatResponse response,
             long start,
             String errorMessage
     ) {
@@ -364,8 +270,8 @@ public class OnePageDraftService {
                 draft.getId(),
                 stage,
                 "user-configured",
-                promptKey,
-                inputJson,
+                prompt.key(),
+                prompt.renderedUserPrompt(),
                 outputJson,
                 errorMessage == null ? "SUCCESS" : "FAILED",
                 errorMessage,
