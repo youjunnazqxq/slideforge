@@ -475,11 +475,17 @@
             <el-button size="small" text @click="runAction(draftStore.loadWorkflowRuns)">刷新</el-button>
           </header>
           <article v-for="run in draftStore.workflowRuns.slice(0, 5)" :key="run.id">
-            <div>
+            <button type="button" @click="toggleTrace(run.id)">
               <strong>{{ run.stage }}</strong>
               <span>{{ run.promptKey || 'manual' }}</span>
-            </div>
+            </button>
             <em>{{ run.status }} · {{ run.durationMs || 0 }}ms</em>
+            <div v-if="activeTraceId === run.id" class="prompt-trace__detail">
+              <label>Prompt</label>
+              <pre>{{ run.inputPreview || 'No prompt preview' }}</pre>
+              <label>Output</label>
+              <pre>{{ run.outputPreview || run.errorMessage || 'No output preview' }}</pre>
+            </div>
           </article>
         </section>
 
@@ -537,7 +543,7 @@ import {
   Refresh,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, type CSSProperties } from 'vue'
+import { computed, onMounted, ref, type CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAiSettingsStore, useOnePageDraftStore } from '@/stores'
@@ -546,6 +552,7 @@ import type { RequirementBrief, VisualSpec } from '@/stores'
 const draftStore = useOnePageDraftStore()
 const aiSettingsStore = useAiSettingsStore()
 const router = useRouter()
+const activeTraceId = ref('')
 const sourceMap = computed(() =>
   new Map(draftStore.researchPack.sources.map((source) => [source.id, source])),
 )
@@ -625,6 +632,10 @@ async function runAction(action: () => Promise<unknown>) {
   } catch {
     ElMessage.error(draftStore.errorMessage || '操作失败')
   }
+}
+
+function toggleTrace(runId: string) {
+  activeTraceId.value = activeTraceId.value === runId ? '' : runId
 }
 
 function splitSourceIds(value: string) {
@@ -1573,6 +1584,16 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
     background: #ffffff;
   }
 
+  button {
+    display: grid;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
+
   strong,
   span {
     display: block;
@@ -1588,6 +1609,37 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
     color: #6b7280;
     font-size: 11px;
     font-style: normal;
+  }
+
+  em {
+    grid-column: 1 / -1;
+  }
+}
+
+.prompt-trace__detail {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 6px;
+  min-width: 0;
+
+  label {
+    color: #374151;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  pre {
+    max-height: 120px;
+    overflow: auto;
+    margin: 0;
+    padding: 8px;
+    border-radius: 6px;
+    background: #f9fafb;
+    color: #111827;
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 }
 

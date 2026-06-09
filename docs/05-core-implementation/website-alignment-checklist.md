@@ -28,6 +28,7 @@ This checklist tracks SlideForge against the referenced PPT Agent workflow:
 - PagePlan now carries editable `speakerIntent` so each page keeps a consultant-style speaking purpose before visual design.
 - PagePlan content blocks now carry editable `sourceIds` so research evidence bindings survive through planning and later visual generation.
 - One-page planning now shows research evidence cards and an evidence coverage panel, making unlinked page-plan blocks and cited sources visible before visual design.
+- One-page Prompt Trace entries now expand inline to show prompt and output previews, matching the traceability already available in the deck agent panel.
 
 ## Remaining Gaps
 
