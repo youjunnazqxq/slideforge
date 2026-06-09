@@ -241,6 +241,14 @@
           >
             Retry Failed
           </el-button>
+          <el-button
+            :loading="deckStore.loadingStage === 'outline'"
+            size="small"
+            plain
+            @click="runAction(deckStore.loadSlidePreviews)"
+          >
+            Load Previews
+          </el-button>
         </header>
 
         <div class="generated-drafts__list">
@@ -250,6 +258,11 @@
               <span>{{ draft.status }}</span>
               <small v-if="draft.errorMessage">{{ draft.errorMessage }}</small>
             </div>
+            <div
+              v-if="deckStore.slidePreviews[draft.slideId]"
+              class="generated-drafts__preview"
+              v-html="deckStore.slidePreviews[draft.slideId]"
+            />
             <code>{{ draft.draftId.slice(0, 8) }}</code>
             <div class="generated-drafts__actions">
               <el-button
@@ -770,7 +783,7 @@ async function downloadDeckPptx() {
 
   article {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) 160px auto auto;
     align-items: center;
     gap: 12px;
     padding: 12px;
@@ -801,6 +814,20 @@ async function downloadDeckPptx() {
     color: #b91c1c;
     font-size: 12px;
     line-height: 1.4;
+  }
+}
+
+.generated-drafts__preview {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  aspect-ratio: 16 / 9;
+  background: #f9fafb;
+
+  :deep(svg) {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 }
 

@@ -20,7 +20,7 @@ import {
   type DeckSlideDraftResponse,
   type SlideStickyNoteResponse,
 } from '@/api/modules/deck'
-import { exportOnePageDraftsPptx } from '@/api/modules/onePage'
+import { exportOnePageDraftsPptx, getOnePageDraft } from '@/api/modules/onePage'
 import { getWorkflowRuns, type WorkflowRunResponse } from '@/api/modules/workflow'
 
 export const useDeckDraftStore = defineStore(
@@ -34,6 +34,7 @@ export const useDeckDraftStore = defineStore(
     const researchMode = ref<'model-only' | 'search-assisted'>('model-only')
     const stickyNotes = ref<SlideStickyNoteResponse[]>([])
     const generatedDrafts = ref<DeckSlideDraftResponse[]>([])
+    const slidePreviews = ref<Record<string, string>>({})
     const workflowRuns = ref<WorkflowRunResponse[]>([])
     const researchPack = ref<DeckResearchPackResponse>({
       mode: 'model-only',
@@ -251,6 +252,7 @@ export const useDeckDraftStore = defineStore(
         await saveStickyNotes()
         const response = await createSvgDraftsFromDeck(id)
         generatedDrafts.value = response.data
+        await loadSlidePreviews()
       })
     }
 
@@ -260,6 +262,7 @@ export const useDeckDraftStore = defineStore(
       await runWithLoading('outline', async () => {
         const response = await createSvgDraftFromDeckSlide(id, slideId)
         generatedDrafts.value = upsertGeneratedDraft(response.data)
+        await loadSlidePreviews()
       })
     }
 
@@ -275,7 +278,20 @@ export const useDeckDraftStore = defineStore(
           const response = await createSvgDraftFromDeckSlide(deckId.value, draft.slideId)
           generatedDrafts.value = upsertGeneratedDraft(response.data)
         }
+        await loadSlidePreviews()
       })
+    }
+
+    async function loadSlidePreviews() {
+      const readyDrafts = generatedDrafts.value.filter((draft) => draft.status === 'SVG_READY' && draft.draftId)
+
+      for (const draft of readyDrafts) {
+        const response = await getOnePageDraft(draft.draftId)
+
+        if (response.data.svgContent) {
+          slidePreviews.value[draft.slideId] = response.data.svgContent
+        }
+      }
     }
 
     async function exportDeckPptx() {
@@ -351,6 +367,7 @@ export const useDeckDraftStore = defineStore(
       outline,
       researchMode,
       researchPack,
+      slidePreviews,
       status,
       stickyNotes,
       workflowRuns,
@@ -365,6 +382,7 @@ export const useDeckDraftStore = defineStore(
       generateDeckOutline,
       generateDeckResearch,
       loadDraft,
+      loadSlidePreviews,
       loadWorkflowRuns,
       moveStickyNote,
       reorderStickyNotes,
@@ -376,7 +394,7 @@ export const useDeckDraftStore = defineStore(
   {
     persist: {
       key: 'slideforge:deck-draft',
-      paths: ['deckId', 'status', 'initialPrompt', 'researchMode', 'researchPack', 'outline', 'stickyNotes', 'generatedDrafts'],
+      paths: ['deckId', 'status', 'initialPrompt', 'researchMode', 'researchPack', 'outline', 'stickyNotes', 'generatedDrafts', 'slidePreviews'],
     },
   },
 )
