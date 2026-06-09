@@ -152,6 +152,31 @@ export const useDeckDraftStore = defineStore(
       await saveStickyNotes()
     }
 
+    async function reorderStickyNotes(sourceSlideId: string, targetSlideId: string) {
+      if (sourceSlideId === targetSlideId) {
+        return
+      }
+
+      const sourceIndex = stickyNotes.value.findIndex((note) => note.slideId === sourceSlideId)
+      const targetIndex = stickyNotes.value.findIndex((note) => note.slideId === targetSlideId)
+
+      if (sourceIndex < 0 || targetIndex < 0) {
+        return
+      }
+
+      const notes = [...stickyNotes.value]
+      const item = notes[sourceIndex]
+
+      if (!item) {
+        return
+      }
+
+      notes.splice(sourceIndex, 1)
+      notes.splice(targetIndex, 0, item)
+      stickyNotes.value = notes.map((note, index) => ({ ...note, order: index + 1 }))
+      await saveStickyNotes()
+    }
+
     async function createAllOnePageDrafts() {
       const id = await ensureDeck()
 
@@ -262,6 +287,7 @@ export const useDeckDraftStore = defineStore(
       generateDeckOutline,
       loadDraft,
       moveStickyNote,
+      reorderStickyNotes,
       retrySlideSvg,
       saveStickyNotes,
     }

@@ -87,7 +87,17 @@
         </header>
 
         <div class="sticky-grid">
-          <article v-for="note in visibleStickyNotes" :key="note.slideId" class="sticky-note">
+          <article
+            v-for="note in visibleStickyNotes"
+            :key="note.slideId"
+            class="sticky-note"
+            :class="{ 'is-dragging': draggingSlideId === note.slideId }"
+            draggable="true"
+            @dragstart="draggingSlideId = note.slideId"
+            @dragend="draggingSlideId = ''"
+            @dragover.prevent
+            @drop.prevent="runAction(() => dropStickyNote(note.slideId))"
+          >
             <div class="sticky-note__top">
               <span>{{ note.order }}</span>
               <el-tag size="small">{{ note.tags?.[0] || 'slide' }}</el-tag>
@@ -181,6 +191,7 @@ const deckStore = useDeckDraftStore()
 const onePageStore = useOnePageDraftStore()
 const router = useRouter()
 const creatingSlideId = ref('')
+const draggingSlideId = ref('')
 
 const svgReadyCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'SVG_READY').length)
 
@@ -227,6 +238,15 @@ async function createOnePage(slideId: string) {
 async function batchCreateDrafts() {
   await deckStore.createAllOnePageDrafts()
   ElMessage.success(`已生成 ${deckStore.generatedDrafts.length} 个单页草稿`)
+}
+
+async function dropStickyNote(targetSlideId: string) {
+  if (!draggingSlideId.value) {
+    return
+  }
+
+  await deckStore.reorderStickyNotes(draggingSlideId.value, targetSlideId)
+  draggingSlideId.value = ''
 }
 
 async function batchGenerateSvgs() {
@@ -517,6 +537,14 @@ async function downloadDeckPptx() {
   gap: 10px;
   padding: 14px;
   background: #fffbeb;
+  cursor: grab;
+
+  &.is-dragging {
+    border-color: #f59e0b;
+    opacity: 0.62;
+    cursor: grabbing;
+    box-shadow: 0 10px 24px rgba(146, 64, 14, 0.14);
+  }
 }
 
 .sticky-note__top {
