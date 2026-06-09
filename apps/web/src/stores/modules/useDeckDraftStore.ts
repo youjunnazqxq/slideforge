@@ -5,6 +5,7 @@ import {
   addDeckStickyNote,
   createDeckDraft,
   createOnePageDraftsFromDeck,
+  createSvgDraftsFromDeck,
   deleteDeckStickyNote,
   generateDeckOutline as requestGenerateDeckOutline,
   getDeckDraft,
@@ -160,9 +161,19 @@ export const useDeckDraftStore = defineStore(
       })
     }
 
+    async function generateAllSlideSvgs() {
+      const id = await ensureDeck()
+
+      await runWithLoading('outline', async () => {
+        await saveStickyNotes()
+        const response = await createSvgDraftsFromDeck(id)
+        generatedDrafts.value = response.data
+      })
+    }
+
     async function exportDeckPptx() {
-      if (!generatedDrafts.value.length) {
-        await createAllOnePageDrafts()
+      if (!generatedDrafts.value.length || generatedDrafts.value.some((draft) => draft.status !== 'SVG_READY')) {
+        await generateAllSlideSvgs()
       }
 
       const draftIds = generatedDrafts.value.map((draft) => draft.draftId)
@@ -220,6 +231,7 @@ export const useDeckDraftStore = defineStore(
       createAllOnePageDrafts,
       deleteStickyNote,
       exportDeckPptx,
+      generateAllSlideSvgs,
       generateDeckOutline,
       loadDraft,
       moveStickyNote,

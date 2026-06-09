@@ -34,6 +34,9 @@
         <el-button :loading="deckStore.loadingStage === 'outline'" type="primary" @click="runAction(batchCreateDrafts)">
           批量生成单页草稿
         </el-button>
+        <el-button :loading="deckStore.loadingStage === 'outline'" type="primary" @click="runAction(batchGenerateSvgs)">
+          批量生成 SVG
+        </el-button>
         <el-button :loading="deckStore.loadingStage === 'outline'" plain @click="runAction(downloadDeckPptx)">
           导出整套 PPTX
         </el-button>
@@ -50,6 +53,7 @@
         <span>{{ deckStore.status }}</span>
         <span v-if="deckStore.deckId">Deck {{ deckStore.deckId.slice(0, 8) }}</span>
         <span v-if="deckStore.generatedDrafts.length">已生成 {{ deckStore.generatedDrafts.length }} 个单页草稿</span>
+        <span v-if="svgReadyCount">SVG ready {{ svgReadyCount }} / {{ deckStore.generatedDrafts.length }}</span>
       </section>
     </aside>
 
@@ -141,6 +145,8 @@ const onePageStore = useOnePageDraftStore()
 const router = useRouter()
 const creatingSlideId = ref('')
 
+const svgReadyCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'SVG_READY').length)
+
 const visibleStickyNotes = computed(() => {
   if (deckStore.stickyNotes.length) {
     return deckStore.stickyNotes
@@ -184,6 +190,11 @@ async function createOnePage(slideId: string) {
 async function batchCreateDrafts() {
   await deckStore.createAllOnePageDrafts()
   ElMessage.success(`已生成 ${deckStore.generatedDrafts.length} 个单页草稿`)
+}
+
+async function batchGenerateSvgs() {
+  await deckStore.generateAllSlideSvgs()
+  ElMessage.success(`已生成 ${svgReadyCount.value} 个 SVG 页面`)
 }
 
 async function downloadDeckPptx() {

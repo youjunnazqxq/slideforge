@@ -156,6 +156,22 @@ public class DeckDraftService {
     }
 
     public List<CreateOnePageDraftResponse> createOnePageDraftsFromSlides(String deckId) {
+        return orderedStickyNotes(deckId).stream()
+                .map(note -> createOnePageDraftFromSlide(deckId, note.slideId()))
+                .toList();
+    }
+
+    public List<CreateOnePageDraftResponse> createSvgDraftsFromSlides(String deckId) {
+        return orderedStickyNotes(deckId).stream()
+                .map(note -> {
+                    CreateOnePageDraftResponse response = createOnePageDraftFromSlide(deckId, note.slideId());
+                    onePageDraftService.generateSvg(response.draftId());
+                    return new CreateOnePageDraftResponse(response.draftId(), "SVG_READY");
+                })
+                .toList();
+    }
+
+    private List<SlideStickyNote> orderedStickyNotes(String deckId) {
         DeckDraftEntity draft = getExistingDraft(deckId);
         DeckOutline outline = fromJson(draft.getOutlineJson(), DeckOutline.class);
 
@@ -175,7 +191,6 @@ public class DeckDraftService {
 
         return notes.stream()
                 .sorted(java.util.Comparator.comparingInt(SlideStickyNote::order))
-                .map(note -> createOnePageDraftFromSlide(deckId, note.slideId()))
                 .toList();
     }
 

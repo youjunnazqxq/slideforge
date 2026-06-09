@@ -83,4 +83,11 @@ public class DeckDraftController {
     ) {
         return ApiResponse.success(deckDraftService.createOnePageDraftsFromSlides(deckId));
     }
+
+    @PostMapping("/{deckId}/slides/svg-drafts")
+    public ApiResponse<List<CreateOnePageDraftResponse>> createSvgDraftsFromSlides(
+            @PathVariable String deckId
+    ) {
+        return ApiResponse.success(deckDraftService.createSvgDraftsFromSlides(deckId));
+    }
 }
