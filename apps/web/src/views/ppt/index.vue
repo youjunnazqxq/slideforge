@@ -324,12 +324,21 @@
               <span>Bento Grid</span>
               <span>{{ draftStore.validationWarnings.length ? '有校验提醒' : '校验通过' }}</span>
             </div>
-            <el-alert
-              v-if="draftStore.validationWarnings.length"
-              :closable="false"
-              :title="draftStore.validationWarnings.join('；')"
-              type="warning"
-            />
+            <section class="svg-quality">
+              <header>
+                <div>
+                  <p>SVG Quality</p>
+                  <h3>{{ draftStore.validationWarnings.length ? '需要复核' : '校验通过' }}</h3>
+                </div>
+                <el-tag :type="draftStore.validationWarnings.length ? 'warning' : 'success'">
+                  {{ draftStore.validationWarnings.length }} warnings
+                </el-tag>
+              </header>
+              <ul v-if="draftStore.validationWarnings.length">
+                <li v-for="warning in draftStore.validationWarnings" :key="warning">{{ warning }}</li>
+              </ul>
+              <span v-else>安全、画布和基础布局检查未发现问题。</span>
+            </section>
           </div>
         </template>
       </section>
@@ -1034,6 +1043,58 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
     background: #f3f4f6;
     color: #4b5563;
     font-size: 12px;
+  }
+}
+
+.svg-quality {
+  display: grid;
+  gap: 10px;
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  p,
+  h3,
+  ul,
+  li,
+  span {
+    margin: 0;
+  }
+
+  p {
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  h3 {
+    margin-top: 4px;
+    color: #111827;
+    font-size: 16px;
+  }
+
+  ul {
+    display: grid;
+    gap: 6px;
+    padding-left: 18px;
+    color: #92400e;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  > span {
+    color: #047857;
+    font-size: 13px;
   }
 }
 
