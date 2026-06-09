@@ -128,6 +128,26 @@
           </article>
         </div>
       </section>
+
+      <section v-if="deckStore.generatedDrafts.length" class="generated-drafts">
+        <header>
+          <p>Generated Drafts</p>
+          <h2>逐页生成结果</h2>
+        </header>
+
+        <div class="generated-drafts__list">
+          <article v-for="(draft, index) in deckStore.generatedDrafts" :key="draft.draftId">
+            <div>
+              <strong>Page {{ index + 1 }}</strong>
+              <span>{{ draft.status }}</span>
+            </div>
+            <code>{{ draft.draftId.slice(0, 8) }}</code>
+            <el-button size="small" plain @click="runAction(() => openGeneratedDraft(draft.draftId))">
+              打开编辑
+            </el-button>
+          </article>
+        </div>
+      </section>
     </main>
   </section>
 </template>
@@ -195,6 +215,11 @@ async function batchCreateDrafts() {
 async function batchGenerateSvgs() {
   await deckStore.generateAllSlideSvgs()
   ElMessage.success(`已生成 ${svgReadyCount.value} 个 SVG 页面`)
+}
+
+async function openGeneratedDraft(draftId: string) {
+  await onePageStore.loadDraft(draftId)
+  await router.push('/app/one-page')
 }
 
 async function downloadDeckPptx() {
@@ -388,6 +413,59 @@ async function downloadDeckPptx() {
   }
 }
 
+.generated-drafts {
+  display: grid;
+  gap: 12px;
+
+  header p,
+  header h2 {
+    margin: 0;
+  }
+
+  header p {
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  header h2 {
+    margin-top: 4px;
+    font-size: 20px;
+  }
+}
+
+.generated-drafts__list {
+  display: grid;
+  gap: 10px;
+
+  article {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 14px;
+  }
+
+  span,
+  code {
+    color: #6b7280;
+    font-size: 12px;
+  }
+}
+
 .sticky-note {
   display: grid;
   min-height: 220px;
@@ -420,7 +498,8 @@ async function downloadDeckPptx() {
   }
 
   .outline-grid,
-  .sticky-grid {
+  .sticky-grid,
+  .generated-drafts__list article {
     grid-template-columns: 1fr;
   }
 }
