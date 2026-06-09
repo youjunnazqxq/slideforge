@@ -32,6 +32,13 @@
           Research
         </el-button>
         <el-button
+          :loading="fullPipelineRunning"
+          type="success"
+          @click="runAction(runFullAgentFlow)"
+        >
+          Run Agent Flow
+        </el-button>
+        <el-button
           :loading="deckStore.loadingStage === 'outline'"
           type="primary"
           @click="runAction(deckStore.generateDeckOutline)"
@@ -87,6 +94,7 @@
       <section class="deck-meta">
         <span>{{ deckStore.status }}</span>
         <span v-if="deckStore.deckId">Deck {{ deckStore.deckId.slice(0, 8) }}</span>
+        <span v-if="fullPipelineStep">Flow {{ fullPipelineStep }}</span>
         <span v-if="deckStore.generatedDrafts.length">已生成 {{ deckStore.generatedDrafts.length }} 个单页草稿</span>
         <span v-if="svgReadyCount">SVG ready {{ svgReadyCount }} / {{ deckStore.generatedDrafts.length }}</span>
         <span v-if="failedCount">Failed {{ failedCount }}</span>
@@ -315,7 +323,18 @@ const onePageStore = useOnePageDraftStore()
 const router = useRouter()
 const creatingSlideId = ref('')
 const draggingSlideId = ref('')
+const fullPipelineRunning = ref(false)
+const fullPipelineStep = ref('')
 const pageTypeOptions = ['cover', 'agenda', 'section', 'content', 'summary']
+const fullAgentFlowSteps = [
+  ['consult', () => deckStore.consultDeck()],
+  ['research', () => deckStore.generateDeckResearch()],
+  ['outline', () => deckStore.generateDeckOutline()],
+  ['one-page drafts', () => deckStore.createAllOnePageDrafts()],
+  ['page plans', () => deckStore.createAllPagePlanDrafts()],
+  ['bento specs', () => deckStore.createAllVisualSpecDrafts()],
+  ['svg pages', () => deckStore.generateAllSlideSvgs()],
+] as const
 
 const svgReadyCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'SVG_READY').length)
 const failedCount = computed(() => deckStore.generatedDrafts.filter((draft) => draft.status === 'FAILED').length)
@@ -433,6 +452,27 @@ async function retrySlideSvg(slideId: string) {
 async function retryFailedSvgs() {
   await deckStore.retryFailedSlideSvgs()
   ElMessage.success(`Retry complete: ${svgReadyCount.value} SVG ready`)
+}
+
+async function runFullAgentFlow() {
+  fullPipelineRunning.value = true
+
+  try {
+    for (const [label, action] of fullAgentFlowSteps) {
+      fullPipelineStep.value = label
+      await action()
+    }
+
+    if (failedCount.value) {
+      fullPipelineStep.value = 'retry failed svgs'
+      await deckStore.retryFailedSlideSvgs()
+    }
+
+    fullPipelineStep.value = 'complete'
+    ElMessage.success(`Agent flow complete: ${svgReadyCount.value} SVG ready`)
+  } finally {
+    fullPipelineRunning.value = false
+  }
 }
 
 async function downloadDeckPptx() {
