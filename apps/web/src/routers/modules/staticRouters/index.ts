@@ -43,6 +43,15 @@ export const staticRouters: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'deck-outline',
+        name: 'DeckOutline',
+        component: () => import('@/views/deck/index.vue'),
+        meta: {
+          title: '完整大纲',
+          requiresAuth: true,
+        },
+      },
+      {
         path: 'one-page',
         name: 'OnePageWorkspace',
         component: () => import('@/views/ppt/index.vue'),

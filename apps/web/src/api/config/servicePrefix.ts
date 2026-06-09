@@ -4,6 +4,7 @@ export const servicePrefix = {
   settings: '/api/settings',
   user: '/user',
   users: '/api/users',
+  decks: '/api/decks',
   onePage: '/api/one-page',
   project: '/project',
   ppt: '/ppt',

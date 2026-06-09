@@ -63,6 +63,7 @@
 <script setup lang="ts">
 import {
   DataAnalysis,
+  Files,
   MagicStick,
   Setting,
   User,
@@ -87,6 +88,11 @@ const navItems = [
     label: '一页 PPT',
     path: '/app/one-page',
     icon: MagicStick,
+  },
+  {
+    label: '完整大纲',
+    path: '/app/deck-outline',
+    icon: Files,
   },
   {
     label: '预览项目',
