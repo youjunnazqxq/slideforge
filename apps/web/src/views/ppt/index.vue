@@ -250,12 +250,11 @@
               <p class="section-kicker">Bento Grid Visual Spec</p>
               <h3>{{ draftStore.visualSpec.canvas.width }} x {{ draftStore.visualSpec.canvas.height }}</h3>
               <div class="theme-swatches">
-                <span
-                  v-for="(color, name) in draftStore.visualSpec.theme"
-                  :key="name"
-                  :style="{ background: color }"
-                  :title="`${name}: ${color}`"
-                />
+                <label v-for="(color, name) in draftStore.visualSpec.theme" :key="name">
+                  <span>{{ name }}</span>
+                  <input v-model="draftStore.visualSpec.theme[name]" type="color" />
+                  <code>{{ color }}</code>
+                </label>
               </div>
             </div>
 
@@ -909,16 +908,43 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
 }
 
 .theme-swatches {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 12px;
 
-  span {
-    width: 34px;
-    height: 34px;
+  label {
+    display: grid;
+    grid-template-columns: auto 34px;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
     border: 1px solid #d1d5db;
     border-radius: 8px;
+  }
+
+  span,
+  code {
+    min-width: 0;
+    overflow: hidden;
+    color: #4b5563;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  code {
+    grid-column: 1 / -1;
+    color: #6b7280;
+  }
+
+  input {
+    width: 34px;
+    height: 28px;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
   }
 }
 
