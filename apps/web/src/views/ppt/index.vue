@@ -305,7 +305,11 @@
             <div>
               <p class="section-kicker">Bento Grid Visual Spec</p>
               <h3>{{ draftStore.visualSpec.canvas.width }} x {{ draftStore.visualSpec.canvas.height }}</h3>
-              <el-tag size="small">{{ draftStore.visualSpec.layoutPattern }}</el-tag>
+              <el-segmented
+                :model-value="draftStore.visualSpec.layoutPattern"
+                :options="layoutPatternOptions"
+                @update:model-value="(value: string | number | boolean) => applyLayoutPattern(String(value))"
+              />
               <div class="theme-swatches">
                 <label v-for="(color, name) in draftStore.visualSpec.theme" :key="name">
                   <span>{{ name }}</span>
@@ -549,10 +553,18 @@ import { useRouter } from 'vue-router'
 import { useAiSettingsStore, useOnePageDraftStore } from '@/stores'
 import type { RequirementBrief, VisualSpec } from '@/stores'
 
+type LayoutPattern = 'hero-left' | 'hero-top' | 'mosaic' | 'split-hero'
+
 const draftStore = useOnePageDraftStore()
 const aiSettingsStore = useAiSettingsStore()
 const router = useRouter()
 const activeTraceId = ref('')
+const layoutPatternOptions: Array<{ label: string; value: LayoutPattern }> = [
+  { label: 'Hero Left', value: 'hero-left' },
+  { label: 'Hero Top', value: 'hero-top' },
+  { label: 'Mosaic', value: 'mosaic' },
+  { label: 'Split Hero', value: 'split-hero' },
+]
 const sourceMap = computed(() =>
   new Map(draftStore.researchPack.sources.map((source) => [source.id, source])),
 )
@@ -657,6 +669,52 @@ function sourceLabel(sourceId: string) {
   }
 
   return source.title || source.publisher || source.id || sourceId
+}
+
+function applyLayoutPattern(pattern: string) {
+  const nextPattern = normalizeLayoutPattern(pattern)
+
+  draftStore.visualSpec.layoutPattern = nextPattern
+  draftStore.visualSpec.cards = makeLayoutCards(nextPattern)
+}
+
+function normalizeLayoutPattern(pattern: string): LayoutPattern {
+  return layoutPatternOptions.some((option) => option.value === pattern) ? (pattern as LayoutPattern) : 'hero-left'
+}
+
+function makeLayoutCards(pattern: LayoutPattern): VisualSpec['cards'] {
+  const blockIds = draftStore.pagePlan.contentBlocks.map((block) => block.id)
+  const blockId = (index: number, fallback: string) => blockIds[index] || fallback
+
+  const cardsByPattern: Record<LayoutPattern, VisualSpec['cards']> = {
+    'hero-left': [
+      { id: 'hero', blockId: blockId(0, 'primary'), x: 64, y: 96, w: 560, h: 528, priority: 'primary' },
+      { id: 'support-1', blockId: blockId(1, 'support-1'), x: 656, y: 96, w: 560, h: 152, priority: 'secondary' },
+      { id: 'support-2', blockId: blockId(2, 'support-2'), x: 656, y: 280, w: 560, h: 152, priority: 'secondary' },
+      { id: 'support-3', blockId: blockId(3, 'support-3'), x: 656, y: 464, w: 560, h: 160, priority: 'supporting' },
+    ],
+    'hero-top': [
+      { id: 'hero', blockId: blockId(0, 'primary'), x: 64, y: 64, w: 1152, h: 250, priority: 'primary' },
+      { id: 'support-1', blockId: blockId(1, 'support-1'), x: 64, y: 352, w: 352, h: 272, priority: 'secondary' },
+      { id: 'support-2', blockId: blockId(2, 'support-2'), x: 464, y: 352, w: 352, h: 272, priority: 'secondary' },
+      { id: 'support-3', blockId: blockId(3, 'support-3'), x: 864, y: 352, w: 352, h: 272, priority: 'supporting' },
+    ],
+    mosaic: [
+      { id: 'hero', blockId: blockId(0, 'primary'), x: 360, y: 152, w: 560, h: 360, priority: 'primary' },
+      { id: 'support-1', blockId: blockId(1, 'support-1'), x: 64, y: 96, w: 264, h: 196, priority: 'secondary' },
+      { id: 'support-2', blockId: blockId(2, 'support-2'), x: 952, y: 96, w: 264, h: 196, priority: 'secondary' },
+      { id: 'support-3', blockId: blockId(3, 'support-3'), x: 64, y: 428, w: 264, h: 196, priority: 'supporting' },
+      { id: 'support-4', blockId: blockId(4, 'support-4'), x: 952, y: 428, w: 264, h: 196, priority: 'supporting' },
+    ],
+    'split-hero': [
+      { id: 'hero-a', blockId: blockId(0, 'primary'), x: 64, y: 88, w: 552, h: 536, priority: 'primary' },
+      { id: 'hero-b', blockId: blockId(1, 'secondary'), x: 664, y: 88, w: 552, h: 248, priority: 'secondary' },
+      { id: 'support-1', blockId: blockId(2, 'support-1'), x: 664, y: 376, w: 264, h: 248, priority: 'supporting' },
+      { id: 'support-2', blockId: blockId(3, 'support-2'), x: 952, y: 376, w: 264, h: 248, priority: 'supporting' },
+    ],
+  }
+
+  return cardsByPattern[pattern]
 }
 
 function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
@@ -950,6 +1008,10 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
   color: #111827;
   font-size: 22px;
   line-height: 1.5;
+}
+
+.visual-spec-view :deep(.el-segmented) {
+  margin-top: 10px;
 }
 
 .research-list,
