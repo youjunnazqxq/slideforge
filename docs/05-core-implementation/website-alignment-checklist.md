@@ -27,6 +27,7 @@ This checklist tracks SlideForge against the referenced PPT Agent workflow:
 - VisualSpec now carries a `layoutPattern` selected from hero-left, hero-top, mosaic, and split-hero, and the editor exposes the selected Bento pattern.
 - PagePlan now carries editable `speakerIntent` so each page keeps a consultant-style speaking purpose before visual design.
 - PagePlan content blocks now carry editable `sourceIds` so research evidence bindings survive through planning and later visual generation.
+- One-page planning now shows research evidence cards and an evidence coverage panel, making unlinked page-plan blocks and cited sources visible before visual design.
 
 ## Remaining Gaps
 

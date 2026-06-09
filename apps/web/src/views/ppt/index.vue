@@ -184,6 +184,17 @@
                 <span>{{ point }}</span>
               </article>
             </div>
+            <div v-if="draftStore.researchPack.evidence.length" class="research-evidence">
+              <article v-for="item in draftStore.researchPack.evidence" :key="item.claim">
+                <strong>{{ item.claim }}</strong>
+                <p>{{ item.support }}</p>
+                <div v-if="safeSourceIds(item.sourceIds).length">
+                  <el-tag v-for="sourceId in safeSourceIds(item.sourceIds)" :key="sourceId" size="small">
+                    {{ sourceLabel(sourceId) }}
+                  </el-tag>
+                </div>
+              </article>
+            </div>
             <div v-if="draftStore.researchPack.sources.length" class="research-sources">
               <article v-for="source in draftStore.researchPack.sources" :key="source.id || source.url">
                 <div>
@@ -250,6 +261,26 @@
                 />
               </article>
             </div>
+            <section class="source-coverage">
+              <header>
+                <div>
+                  <p>Evidence Coverage</p>
+                  <h3>{{ linkedBlockCount }} / {{ draftStore.pagePlan.contentBlocks.length }} blocks linked</h3>
+                </div>
+                <el-tag :type="unlinkedBlocks.length ? 'warning' : 'success'">
+                  {{ unlinkedBlocks.length ? `${unlinkedBlocks.length} unlinked` : 'covered' }}
+                </el-tag>
+              </header>
+              <div v-if="citedSourceRows.length" class="source-coverage__grid">
+                <article v-for="row in citedSourceRows" :key="row.id">
+                  <strong>{{ row.label }}</strong>
+                  <span>{{ row.blockTitles.join(', ') }}</span>
+                </article>
+              </div>
+              <div v-if="unlinkedBlocks.length" class="source-coverage__warning">
+                <span v-for="block in unlinkedBlocks" :key="block.id">{{ block.title || block.id }}</span>
+              </div>
+            </section>
             <div class="stage-actions">
               <el-button
                 :loading="draftStore.loadingStage === 'pagePlan'"
@@ -506,7 +537,7 @@ import {
   Refresh,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { onMounted, type CSSProperties } from 'vue'
+import { computed, onMounted, type CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAiSettingsStore, useOnePageDraftStore } from '@/stores'
@@ -515,6 +546,33 @@ import type { RequirementBrief, VisualSpec } from '@/stores'
 const draftStore = useOnePageDraftStore()
 const aiSettingsStore = useAiSettingsStore()
 const router = useRouter()
+const sourceMap = computed(() =>
+  new Map(draftStore.researchPack.sources.map((source) => [source.id, source])),
+)
+const linkedBlockCount = computed(
+  () => draftStore.pagePlan.contentBlocks.filter((block) => safeSourceIds(block.sourceIds).length).length,
+)
+const unlinkedBlocks = computed(() =>
+  draftStore.pagePlan.contentBlocks.filter((block) => !safeSourceIds(block.sourceIds).length),
+)
+const citedSourceRows = computed(() => {
+  const rows = new Map<string, { id: string; label: string; blockTitles: string[] }>()
+
+  for (const block of draftStore.pagePlan.contentBlocks) {
+    for (const sourceId of safeSourceIds(block.sourceIds)) {
+      const row = rows.get(sourceId) ?? {
+        id: sourceId,
+        label: sourceLabel(sourceId),
+        blockTitles: [],
+      }
+
+      row.blockTitles.push(block.title || block.id)
+      rows.set(sourceId, row)
+    }
+  }
+
+  return Array.from(rows.values())
+})
 
 const briefFields: Array<{
   key: keyof RequirementBrief
@@ -574,6 +632,20 @@ function splitSourceIds(value: string) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)
+}
+
+function safeSourceIds(sourceIds?: string[]) {
+  return Array.isArray(sourceIds) ? sourceIds : []
+}
+
+function sourceLabel(sourceId: string) {
+  const source = sourceMap.value.get(sourceId)
+
+  if (!source) {
+    return sourceId
+  }
+
+  return source.title || source.publisher || source.id || sourceId
 }
 
 function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
@@ -870,6 +942,7 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
 }
 
 .research-list,
+.research-evidence,
 .research-sources,
 .plan-blocks,
 .visual-card-list {
@@ -900,6 +973,41 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
   .el-icon {
     margin-top: 4px;
     color: #059669;
+  }
+}
+
+.research-evidence {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  article {
+    display: grid;
+    gap: 8px;
+    padding: 14px;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    background: #eff6ff;
+  }
+
+  strong,
+  p {
+    margin: 0;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 14px;
+  }
+
+  p {
+    color: #4b5563;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 }
 
@@ -990,6 +1098,85 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.source-coverage {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  p,
+  h3 {
+    margin: 0;
+  }
+
+  p {
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  h3 {
+    margin-top: 4px;
+    color: #111827;
+    font-size: 16px;
+  }
+}
+
+.source-coverage__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+
+  article {
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    border: 1px solid #edf2f7;
+    border-radius: 8px;
+    background: #f9fafb;
+  }
+
+  strong,
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 12px;
+  }
+
+  span {
+    color: #6b7280;
+    font-size: 11px;
+  }
+}
+
+.source-coverage__warning {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  span {
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #fff7ed;
+    color: #9a3412;
+    font-size: 12px;
+  }
 }
 
 .theme-swatches {
@@ -1470,7 +1657,9 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
   }
 
   .form-grid,
+  .research-evidence,
   .plan-blocks,
+  .source-coverage__grid,
   .visual-card-list {
     grid-template-columns: 1fr;
   }

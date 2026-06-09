@@ -47,6 +47,7 @@ export interface RequirementBrief {
 export interface ResearchPack {
   summary: string
   keyPoints: string[]
+  evidence: ResearchPackResponse['evidence']
   sources: ResearchPackResponse['sources']
   limitations: string[]
 }
@@ -142,6 +143,7 @@ export const useOnePageDraftStore = defineStore(
         'Bento Grid 适合承载结论、风险、能力和下一步等多块信息。',
         '主要风险集中在模型输出稳定性、SVG 重叠和资料可靠性。',
       ],
+      evidence: [],
       sources: [],
       limitations: ['当前为本地示例，接入后端后会保存真实 researchPack。'],
     })
@@ -482,6 +484,7 @@ export const useOnePageDraftStore = defineStore(
     function applyResearch(nextResearch: ResearchPackResponse) {
       researchPack.summary = nextResearch.summary
       researchPack.keyPoints = nextResearch.keyPoints
+      researchPack.evidence = nextResearch.evidence ?? []
       researchPack.sources = nextResearch.sources
       researchPack.limitations = nextResearch.limitations
     }
