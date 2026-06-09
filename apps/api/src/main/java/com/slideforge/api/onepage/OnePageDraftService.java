@@ -1,5 +1,7 @@
 package com.slideforge.api.onepage;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.slideforge.api.onepage.dto.ConsultResponse;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
 import com.slideforge.api.onepage.dto.OnePageDraftResponse;
@@ -9,13 +11,12 @@ import com.slideforge.api.onepage.dto.ResearchPack;
 import com.slideforge.api.onepage.dto.SvgGenerateResponse;
 import com.slideforge.api.onepage.dto.ValidationReport;
 import com.slideforge.api.onepage.dto.VisualSpec;
-import com.slideforge.api.onepage.model.OnePageDraft;
 import com.slideforge.api.svg.SvgValidationService;
+import com.slideforge.api.workflow.WorkflowRun;
+import com.slideforge.api.workflow.WorkflowRunRepository;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,18 +24,28 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class OnePageDraftService {
 
-    private final Map<String, OnePageDraft> drafts = new ConcurrentHashMap<>();
-    private final SvgValidationService svgValidationService;
+    private static final String LOCAL_USER_ID = "local-user";
 
-    public OnePageDraftService(SvgValidationService svgValidationService) {
+    private final OnePageDraftRepository onePageDraftRepository;
+    private final WorkflowRunRepository workflowRunRepository;
+    private final SvgValidationService svgValidationService;
+    private final ObjectMapper objectMapper;
+
+    public OnePageDraftService(
+            OnePageDraftRepository onePageDraftRepository,
+            WorkflowRunRepository workflowRunRepository,
+            SvgValidationService svgValidationService,
+            ObjectMapper objectMapper
+    ) {
+        this.onePageDraftRepository = onePageDraftRepository;
+        this.workflowRunRepository = workflowRunRepository;
         this.svgValidationService = svgValidationService;
+        this.objectMapper = objectMapper;
     }
 
     public CreateOnePageDraftResponse createDraft(String initialPrompt) {
-        String id = UUID.randomUUID().toString();
-        OnePageDraft draft = new OnePageDraft(id, initialPrompt);
-        drafts.put(id, draft);
-        return new CreateOnePageDraftResponse(id, draft.getStatus());
+        OnePageDraftEntity draft = onePageDraftRepository.save(new OnePageDraftEntity(LOCAL_USER_ID, initialPrompt));
+        return new CreateOnePageDraftResponse(draft.getId().toString(), draft.getStatus());
     }
 
     public OnePageDraftResponse getDraft(String draftId) {
@@ -42,14 +53,18 @@ public class OnePageDraftService {
     }
 
     public ConsultResponse consult(String draftId, String message) {
-        OnePageDraft draft = getExistingDraft(draftId);
+        long start = System.currentTimeMillis();
+        OnePageDraftEntity draft = getExistingDraft(draftId);
         draft.setStatus("CONSULTING");
+        onePageDraftRepository.save(draft);
         String response = "已收到补充信息。下一步可以生成结构化 brief，明确受众、场景、目标、核心结论和必须包含的信息。";
+        recordWorkflow(draft, "consult", "consultant.v1", message, response, start, null);
         return new ConsultResponse(response, true);
     }
 
     public RequirementBrief generateBrief(String draftId) {
-        OnePageDraft draft = getExistingDraft(draftId);
+        long start = System.currentTimeMillis();
+        OnePageDraftEntity draft = getExistingDraft(draftId);
         RequirementBrief brief = new RequirementBrief(
                 "AI PPT Agent 项目可行性",
                 "团队内部成员",
@@ -62,20 +77,24 @@ public class OnePageDraftService {
                 "zh-CN",
                 "16:9"
         );
-        draft.setRequirementBrief(brief);
+        draft.setRequirementBriefJson(toJson(brief));
         draft.setStatus("BRIEF_READY");
+        onePageDraftRepository.save(draft);
+        recordWorkflow(draft, "brief", "brief.extract.v1", draft.getInitialPrompt(), toJson(brief), start, null);
         return brief;
     }
 
     public RequirementBrief updateBrief(String draftId, RequirementBrief brief) {
-        OnePageDraft draft = getExistingDraft(draftId);
-        draft.setRequirementBrief(brief);
+        OnePageDraftEntity draft = getExistingDraft(draftId);
+        draft.setRequirementBriefJson(toJson(brief));
         draft.setStatus("BRIEF_READY");
+        onePageDraftRepository.save(draft);
         return brief;
     }
 
     public ResearchPack generateResearch(String draftId) {
-        OnePageDraft draft = getExistingDraft(draftId);
+        long start = System.currentTimeMillis();
+        OnePageDraftEntity draft = getExistingDraft(draftId);
         ensureBrief(draft);
         ResearchPack researchPack = new ResearchPack(
                 "model-only",
@@ -93,13 +112,16 @@ public class OnePageDraftService {
                 List.of(),
                 List.of("当前为 model-only 资料整理，尚未接入外部来源。")
         );
-        draft.setResearchPack(researchPack);
+        draft.setResearchPackJson(toJson(researchPack));
         draft.setStatus("RESEARCH_READY");
+        onePageDraftRepository.save(draft);
+        recordWorkflow(draft, "research", "research.collect.v1", draft.getRequirementBriefJson(), toJson(researchPack), start, null);
         return researchPack;
     }
 
     public PagePlan generatePagePlan(String draftId) {
-        OnePageDraft draft = getExistingDraft(draftId);
+        long start = System.currentTimeMillis();
+        OnePageDraftEntity draft = getExistingDraft(draftId);
         ensureBrief(draft);
         PagePlan pagePlan = new PagePlan(
                 "AI PPT Agent：先验证一页闭环的可行性",
@@ -131,48 +153,54 @@ public class OnePageDraftService {
                 "使用 Bento Grid：左侧大卡片放核心判断，右侧三张卡片放 BYOK、风险和下一步。",
                 "专业、克制、现代，避免花哨装饰，强调层级和留白。"
         );
-        draft.setPagePlan(pagePlan);
+        VisualSpec visualSpec = generateVisualSpec();
+        draft.setPagePlanJson(toJson(pagePlan));
+        draft.setVisualSpecJson(toJson(visualSpec));
         draft.setStatus("PAGE_PLAN_READY");
-        draft.setVisualSpec(generateVisualSpec());
+        onePageDraftRepository.save(draft);
+        recordWorkflow(draft, "pagePlan", "page-plan.generate.v1", draft.getResearchPackJson(), toJson(pagePlan), start, null);
         return pagePlan;
     }
 
     public PagePlan updatePagePlan(String draftId, PagePlan pagePlan) {
-        OnePageDraft draft = getExistingDraft(draftId);
-        draft.setPagePlan(pagePlan);
-        draft.setVisualSpec(generateVisualSpec());
+        OnePageDraftEntity draft = getExistingDraft(draftId);
+        draft.setPagePlanJson(toJson(pagePlan));
+        draft.setVisualSpecJson(toJson(generateVisualSpec()));
         draft.setStatus("PAGE_PLAN_READY");
+        onePageDraftRepository.save(draft);
         return pagePlan;
     }
 
     public SvgGenerateResponse generateSvg(String draftId) {
-        OnePageDraft draft = getExistingDraft(draftId);
-        if (draft.getPagePlan() == null) {
+        long start = System.currentTimeMillis();
+        OnePageDraftEntity draft = getExistingDraft(draftId);
+        if (draft.getPagePlanJson() == null) {
             generatePagePlan(draftId);
+            draft = getExistingDraft(draftId);
         }
 
-        String rawSvg = buildSvg(draft.getPagePlan());
+        PagePlan pagePlan = fromJson(draft.getPagePlanJson(), PagePlan.class);
+        String rawSvg = buildSvg(pagePlan);
         String sanitizedSvg = svgValidationService.sanitize(rawSvg);
         ValidationReport validationReport = svgValidationService.validate(sanitizedSvg);
 
         draft.setSvgContent(sanitizedSvg);
-        draft.setValidationReport(validationReport);
+        draft.setValidationReportJson(toJson(validationReport));
         draft.setStatus(validationReport.valid() ? "SVG_READY" : "FAILED");
+        onePageDraftRepository.save(draft);
+        recordWorkflow(draft, "svg", "svg.generate.v1", draft.getPagePlanJson(), sanitizedSvg, start, null);
 
         return new SvgGenerateResponse(sanitizedSvg, validationReport);
     }
 
-    private OnePageDraft getExistingDraft(String draftId) {
-        OnePageDraft draft = drafts.get(draftId);
-        if (draft == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "草稿不存在");
-        }
-        return draft;
+    private OnePageDraftEntity getExistingDraft(String draftId) {
+        return onePageDraftRepository.findById(UUID.fromString(draftId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "草稿不存在"));
     }
 
-    private void ensureBrief(OnePageDraft draft) {
-        if (draft.getRequirementBrief() == null) {
-            draft.setRequirementBrief(generateBrief(draft.getId()));
+    private void ensureBrief(OnePageDraftEntity draft) {
+        if (draft.getRequirementBriefJson() == null) {
+            generateBrief(draft.getId().toString());
         }
     }
 
@@ -239,17 +267,60 @@ public class OnePageDraftService {
                 .replace("'", "&apos;");
     }
 
-    private OnePageDraftResponse toResponse(OnePageDraft draft) {
-        return new OnePageDraftResponse(
+    private void recordWorkflow(
+            OnePageDraftEntity draft,
+            String stage,
+            String promptKey,
+            String inputJson,
+            String outputJson,
+            long start,
+            String errorMessage
+    ) {
+        workflowRunRepository.save(new WorkflowRun(
+                LOCAL_USER_ID,
                 draft.getId(),
+                stage,
+                "local-placeholder",
+                promptKey,
+                inputJson,
+                outputJson,
+                errorMessage == null ? "SUCCESS" : "FAILED",
+                errorMessage,
+                System.currentTimeMillis() - start
+        ));
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "JSON 序列化失败");
+        }
+    }
+
+    private <T> T fromJson(String json, Class<T> type) {
+        if (json == null) {
+            return null;
+        }
+
+        try {
+            return objectMapper.readValue(json, type);
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "JSON 解析失败");
+        }
+    }
+
+    private OnePageDraftResponse toResponse(OnePageDraftEntity draft) {
+        return new OnePageDraftResponse(
+                draft.getId().toString(),
                 draft.getStatus(),
                 draft.getInitialPrompt(),
-                draft.getRequirementBrief(),
-                draft.getResearchPack(),
-                draft.getPagePlan(),
-                draft.getVisualSpec(),
+                fromJson(draft.getRequirementBriefJson(), RequirementBrief.class),
+                fromJson(draft.getResearchPackJson(), ResearchPack.class),
+                fromJson(draft.getPagePlanJson(), PagePlan.class),
+                fromJson(draft.getVisualSpecJson(), VisualSpec.class),
                 draft.getSvgContent(),
-                draft.getValidationReport()
+                fromJson(draft.getValidationReportJson(), ValidationReport.class)
         );
     }
 }

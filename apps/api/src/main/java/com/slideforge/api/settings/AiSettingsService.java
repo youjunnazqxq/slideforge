@@ -3,6 +3,7 @@ package com.slideforge.api.settings;
 import com.slideforge.api.ai.provider.AiChatRequest;
 import com.slideforge.api.ai.provider.AiMessage;
 import com.slideforge.api.ai.provider.AiProviderClient;
+import com.slideforge.api.security.SecretCryptoService;
 import com.slideforge.api.settings.dto.AiConnectionTestResponse;
 import com.slideforge.api.settings.dto.AiSettingsResponse;
 import com.slideforge.api.settings.dto.UpdateAiSettingsRequest;
@@ -13,50 +14,60 @@ import org.springframework.util.StringUtils;
 @Service
 public class AiSettingsService {
 
+    private static final String LOCAL_USER_ID = "local-user";
+
+    private final AiSettingsRepository aiSettingsRepository;
     private final AiProviderClient aiProviderClient;
+    private final SecretCryptoService secretCryptoService;
 
-    private String provider = "openai-compatible";
-    private String baseUrl = "";
-    private String apiKey = "";
-    private String model = "";
-    private double temperature = 0.7;
-    private int maxTokens = 4096;
-
-    public AiSettingsService(AiProviderClient aiProviderClient) {
+    public AiSettingsService(
+            AiSettingsRepository aiSettingsRepository,
+            AiProviderClient aiProviderClient,
+            SecretCryptoService secretCryptoService
+    ) {
+        this.aiSettingsRepository = aiSettingsRepository;
         this.aiProviderClient = aiProviderClient;
+        this.secretCryptoService = secretCryptoService;
     }
 
     public AiSettingsResponse getSettings() {
-        return toResponse();
+        return toResponse(getOrCreateSettings());
     }
 
     public AiSettingsResponse updateSettings(UpdateAiSettingsRequest request) {
-        provider = request.provider();
-        baseUrl = request.baseUrl();
-        model = request.model();
-        temperature = request.temperature() == null ? temperature : request.temperature();
-        maxTokens = request.maxTokens() == null ? maxTokens : request.maxTokens();
+        AiSettings settings = getOrCreateSettings();
+        settings.setProvider(request.provider());
+        settings.setBaseUrl(request.baseUrl());
+        settings.setModel(request.model());
+        settings.setTemperature(request.temperature() == null ? settings.getTemperature() : request.temperature());
+        settings.setMaxTokens(request.maxTokens() == null ? settings.getMaxTokens() : request.maxTokens());
 
         if (StringUtils.hasText(request.apiKey())) {
-            apiKey = request.apiKey();
+            settings.setEncryptedApiKey(secretCryptoService.encrypt(request.apiKey()));
+            settings.setApiKeyMask(maskApiKey(request.apiKey()));
         }
 
-        return toResponse();
+        return toResponse(aiSettingsRepository.save(settings));
     }
 
     public AiSettingsResponse deleteApiKey() {
-        apiKey = "";
-        return toResponse();
+        AiSettings settings = getOrCreateSettings();
+        settings.setEncryptedApiKey(null);
+        settings.setApiKeyMask("");
+        return toResponse(aiSettingsRepository.save(settings));
     }
 
     public AiConnectionTestResponse testConnection() {
-        if (!isConfigured()) {
+        AiSettings settings = getOrCreateSettings();
+
+        if (!isConfigured(settings)) {
             return new AiConnectionTestResponse(false, "AI 配置不完整，请先填写 Base URL、API Key 和模型名称。");
         }
 
+        secretCryptoService.decrypt(settings.getEncryptedApiKey());
         aiProviderClient.chat(new AiChatRequest(
-                "local-user",
-                model,
+                LOCAL_USER_ID,
+                settings.getModel(),
                 List.of(new AiMessage("user", "Return the word OK only.")),
                 0.0,
                 64,
@@ -66,20 +77,27 @@ public class AiSettingsService {
         return new AiConnectionTestResponse(true, "AI Provider Adapter 调用成功；真实模型请求可在该适配器中接入。");
     }
 
-    private AiSettingsResponse toResponse() {
+    private AiSettings getOrCreateSettings() {
+        return aiSettingsRepository.findByUserId(LOCAL_USER_ID)
+                .orElseGet(() -> aiSettingsRepository.save(new AiSettings(LOCAL_USER_ID)));
+    }
+
+    private AiSettingsResponse toResponse(AiSettings settings) {
         return new AiSettingsResponse(
-                provider,
-                baseUrl,
-                StringUtils.hasText(apiKey),
-                maskApiKey(apiKey),
-                model,
-                temperature,
-                maxTokens
+                settings.getProvider(),
+                settings.getBaseUrl(),
+                StringUtils.hasText(settings.getEncryptedApiKey()),
+                settings.getApiKeyMask() == null ? "" : settings.getApiKeyMask(),
+                settings.getModel(),
+                settings.getTemperature(),
+                settings.getMaxTokens()
         );
     }
 
-    private boolean isConfigured() {
-        return StringUtils.hasText(baseUrl) && StringUtils.hasText(apiKey) && StringUtils.hasText(model);
+    private boolean isConfigured(AiSettings settings) {
+        return StringUtils.hasText(settings.getBaseUrl())
+                && StringUtils.hasText(settings.getEncryptedApiKey())
+                && StringUtils.hasText(settings.getModel());
     }
 
     private String maskApiKey(String value) {
