@@ -288,7 +288,20 @@
             <div class="visual-card-list">
               <article v-for="card in draftStore.visualSpec.cards" :key="card.id">
                 <strong>{{ card.id }}</strong>
-                <span>{{ card.blockId }} / {{ card.priority }}</span>
+                <div class="visual-card-meta">
+                  <label>
+                    <span>Block</span>
+                    <el-input v-model="card.blockId" size="small" />
+                  </label>
+                  <label>
+                    <span>Priority</span>
+                    <el-select v-model="card.priority" size="small">
+                      <el-option label="primary" value="primary" />
+                      <el-option label="secondary" value="secondary" />
+                      <el-option label="supporting" value="supporting" />
+                    </el-select>
+                  </label>
+                </div>
                 <div class="visual-card-controls">
                   <label>
                     <span>X</span>
@@ -1086,6 +1099,24 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
 
   :deep(.el-input-number) {
     width: 100%;
+  }
+}
+
+.visual-card-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+
+  label {
+    display: grid;
+    gap: 4px;
+  }
+
+  span {
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 800;
   }
 }
 
