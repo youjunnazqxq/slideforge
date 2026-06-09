@@ -21,9 +21,9 @@ This checklist tracks SlideForge against the referenced PPT Agent workflow:
 - Per-step rerun controls for consult, research, outline, page plans, Bento specs, and SVG generation.
 - Deck-level export preview showing final slide order and per-slide export readiness.
 - Developer-facing Deck Agent API guide with BYOK setup, flow orchestration, rerun endpoints, export preconditions, and error notes.
+- Backend integration test for `runAgentFlow` orchestration with mocked AI and one-page generation services.
 - SVG validation checks root closure, 1280x720 canvas, external resources, inline styles, filters, data URLs, element bounds, text density, and Bento grid density.
 
 ## Remaining Gaps
 
-- Add backend tests around `runAgentFlow` orchestration with mocked AI services.
 - Add visual regression or browser verification for the deck three-column layout.
