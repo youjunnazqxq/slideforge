@@ -192,6 +192,15 @@ public class DeckDraftService {
                 note.message(),
                 String.join(", ", note.tags() == null ? List.of() : note.tags())
         );
+        prompt = prompt + """
+
+                Page type guidance:
+                - cover: create a title-led opening slide with deck title, thesis, audience/scenario, and restrained visual framing.
+                - agenda: create a navigational slide that previews the chapter sequence, not a dense content page.
+                - section: create a chapter divider with section title, purpose, and a short transition message.
+                - content: create a normal evidence/argument slide with one main message and supporting blocks.
+                - summary: create a closing slide with final conclusion, decision, and concrete next steps.
+                """;
 
         return onePageDraftService.createDraft(prompt);
     }
