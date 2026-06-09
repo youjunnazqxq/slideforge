@@ -216,6 +216,18 @@ public class DeckDraftService {
         return generatedDrafts;
     }
 
+    public List<DeckSlideDraftResponse> createPagePlanDraftsFromSlides(String deckId) {
+        List<DeckSlideDraftResponse> existingDrafts = generatedDraftsFromJson(getExistingDraft(deckId).getGeneratedDraftsJson());
+        List<DeckSlideDraftResponse> generatedDrafts = orderedStickyNotes(deckId).stream()
+                .map(note -> createPagePlanDraftForNote(deckId, note, existingDrafts))
+                .toList();
+        String status = generatedDrafts.stream().anyMatch(draft -> "FAILED".equals(draft.status()))
+                ? "PAGE_PLANS_PARTIAL"
+                : "PAGE_PLANS_READY";
+        saveGeneratedDrafts(deckId, generatedDrafts, status);
+        return generatedDrafts;
+    }
+
     public List<DeckSlideDraftResponse> createSvgDraftsFromSlides(String deckId) {
         List<DeckSlideDraftResponse> existingDrafts = generatedDraftsFromJson(getExistingDraft(deckId).getGeneratedDraftsJson());
         List<DeckSlideDraftResponse> generatedDrafts = orderedStickyNotes(deckId).stream()
@@ -241,6 +253,36 @@ public class DeckDraftService {
                 : "SLIDE_SVGS_READY";
         saveGeneratedDrafts(deckId, nextDrafts, status);
         return response;
+    }
+
+    private DeckSlideDraftResponse createPagePlanDraftForNote(
+            String deckId,
+            SlideStickyNote note,
+            List<DeckSlideDraftResponse> existingDrafts
+    ) {
+        String draftId = existingDrafts.stream()
+                .filter(draft -> draft.slideId().equals(note.slideId()) && hasText(draft.draftId()))
+                .map(DeckSlideDraftResponse::draftId)
+                .findFirst()
+                .orElse("");
+
+        try {
+            if (!hasText(draftId)) {
+                draftId = createOnePageDraftFromSlide(deckId, note.slideId()).draftId();
+            }
+
+            onePageDraftService.generatePagePlan(draftId);
+            return new DeckSlideDraftResponse(note.slideId(), note.order(), note.title(), draftId, "PAGE_PLAN_READY", null);
+        } catch (RuntimeException exception) {
+            return new DeckSlideDraftResponse(
+                    note.slideId(),
+                    note.order(),
+                    note.title(),
+                    draftId,
+                    "FAILED",
+                    errorMessage(exception)
+            );
+        }
     }
 
     private DeckSlideDraftResponse createSvgDraftForNote(

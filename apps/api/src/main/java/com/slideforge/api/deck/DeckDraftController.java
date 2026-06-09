@@ -104,6 +104,13 @@ public class DeckDraftController {
         return ApiResponse.success(deckDraftService.createOnePageDraftsFromSlides(deckId));
     }
 
+    @PostMapping("/{deckId}/slides/page-plan-drafts")
+    public ApiResponse<List<DeckSlideDraftResponse>> createPagePlanDraftsFromSlides(
+            @PathVariable String deckId
+    ) {
+        return ApiResponse.success(deckDraftService.createPagePlanDraftsFromSlides(deckId));
+    }
+
     @PostMapping("/{deckId}/slides/svg-drafts")
     public ApiResponse<List<DeckSlideDraftResponse>> createSvgDraftsFromSlides(
             @PathVariable String deckId

@@ -44,6 +44,9 @@
         <el-button :loading="deckStore.loadingStage === 'outline'" type="primary" @click="runAction(batchCreateDrafts)">
           批量生成单页草稿
         </el-button>
+        <el-button :loading="deckStore.loadingStage === 'outline'" type="primary" @click="runAction(batchCreatePlans)">
+          Batch Page Plans
+        </el-button>
         <el-button :loading="deckStore.loadingStage === 'outline'" type="primary" @click="runAction(batchGenerateSvgs)">
           批量生成 SVG
         </el-button>
@@ -283,6 +286,12 @@ async function createOnePage(slideId: string) {
 async function batchCreateDrafts() {
   await deckStore.createAllOnePageDrafts()
   ElMessage.success(`已生成 ${deckStore.generatedDrafts.length} 个单页草稿`)
+}
+
+async function batchCreatePlans() {
+  await deckStore.createAllPagePlanDrafts()
+  const readyCount = deckStore.generatedDrafts.filter((draft) => draft.status === 'PAGE_PLAN_READY').length
+  ElMessage.success(`Page plans ready ${readyCount} / ${deckStore.generatedDrafts.length}`)
 }
 
 async function dropStickyNote(targetSlideId: string) {

@@ -116,6 +116,10 @@ export function createOnePageDraftsFromDeck(deckId: string) {
   return request.post<DeckSlideDraftResponse[]>(`${servicePrefix.decks}/${deckId}/slides/one-page-drafts`)
 }
 
+export function createPagePlanDraftsFromDeck(deckId: string) {
+  return request.post<DeckSlideDraftResponse[]>(`${servicePrefix.decks}/${deckId}/slides/page-plan-drafts`)
+}
+
 export function createSvgDraftsFromDeck(deckId: string) {
   return request.post<DeckSlideDraftResponse[]>(`${servicePrefix.decks}/${deckId}/slides/svg-drafts`)
 }
