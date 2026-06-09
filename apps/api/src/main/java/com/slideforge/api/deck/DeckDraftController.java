@@ -5,6 +5,7 @@ import com.slideforge.api.deck.dto.CreateDeckDraftRequest;
 import com.slideforge.api.deck.dto.CreateDeckDraftResponse;
 import com.slideforge.api.deck.dto.DeckDraftResponse;
 import com.slideforge.api.deck.dto.DeckOutline;
+import com.slideforge.api.deck.dto.DeckSlideDraftResponse;
 import com.slideforge.api.deck.dto.SlideStickyNote;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
 import jakarta.validation.Valid;
@@ -78,14 +79,14 @@ public class DeckDraftController {
     }
 
     @PostMapping("/{deckId}/slides/one-page-drafts")
-    public ApiResponse<List<CreateOnePageDraftResponse>> createOnePageDraftsFromSlides(
+    public ApiResponse<List<DeckSlideDraftResponse>> createOnePageDraftsFromSlides(
             @PathVariable String deckId
     ) {
         return ApiResponse.success(deckDraftService.createOnePageDraftsFromSlides(deckId));
     }
 
     @PostMapping("/{deckId}/slides/svg-drafts")
-    public ApiResponse<List<CreateOnePageDraftResponse>> createSvgDraftsFromSlides(
+    public ApiResponse<List<DeckSlideDraftResponse>> createSvgDraftsFromSlides(
             @PathVariable String deckId
     ) {
         return ApiResponse.success(deckDraftService.createSvgDraftsFromSlides(deckId));

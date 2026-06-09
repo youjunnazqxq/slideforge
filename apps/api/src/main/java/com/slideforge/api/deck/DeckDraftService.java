@@ -9,6 +9,7 @@ import com.slideforge.api.ai.provider.AiChatResponse;
 import com.slideforge.api.deck.dto.CreateDeckDraftResponse;
 import com.slideforge.api.deck.dto.DeckDraftResponse;
 import com.slideforge.api.deck.dto.DeckOutline;
+import com.slideforge.api.deck.dto.DeckSlideDraftResponse;
 import com.slideforge.api.deck.dto.SlideStickyNote;
 import com.slideforge.api.onepage.OnePageDraftService;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
@@ -155,20 +156,33 @@ public class DeckDraftService {
         return onePageDraftService.createDraft(prompt);
     }
 
-    public List<CreateOnePageDraftResponse> createOnePageDraftsFromSlides(String deckId) {
+    public List<DeckSlideDraftResponse> createOnePageDraftsFromSlides(String deckId) {
         return orderedStickyNotes(deckId).stream()
-                .map(note -> createOnePageDraftFromSlide(deckId, note.slideId()))
+                .map(note -> {
+                    CreateOnePageDraftResponse response = createOnePageDraftFromSlide(deckId, note.slideId());
+                    return toDeckSlideDraft(note, response);
+                })
                 .toList();
     }
 
-    public List<CreateOnePageDraftResponse> createSvgDraftsFromSlides(String deckId) {
+    public List<DeckSlideDraftResponse> createSvgDraftsFromSlides(String deckId) {
         return orderedStickyNotes(deckId).stream()
                 .map(note -> {
                     CreateOnePageDraftResponse response = createOnePageDraftFromSlide(deckId, note.slideId());
                     onePageDraftService.generateSvg(response.draftId());
-                    return new CreateOnePageDraftResponse(response.draftId(), "SVG_READY");
+                    return toDeckSlideDraft(note, new CreateOnePageDraftResponse(response.draftId(), "SVG_READY"));
                 })
                 .toList();
+    }
+
+    private DeckSlideDraftResponse toDeckSlideDraft(SlideStickyNote note, CreateOnePageDraftResponse response) {
+        return new DeckSlideDraftResponse(
+                note.slideId(),
+                note.order(),
+                note.title(),
+                response.draftId(),
+                response.status()
+        );
     }
 
     private List<SlideStickyNote> orderedStickyNotes(String deckId) {

@@ -138,7 +138,7 @@
         <div class="generated-drafts__list">
           <article v-for="(draft, index) in deckStore.generatedDrafts" :key="draft.draftId">
             <div>
-              <strong>Page {{ index + 1 }}</strong>
+              <strong>Page {{ draft.order || index + 1 }} · {{ draft.title || '未命名页面' }}</strong>
               <span>{{ draft.status }}</span>
             </div>
             <code>{{ draft.draftId.slice(0, 8) }}</code>

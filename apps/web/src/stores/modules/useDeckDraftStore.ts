@@ -12,7 +12,7 @@ import {
   saveDeckStickyNotes,
   type DeckDraftResponse,
   type DeckOutlineResponse,
-  type CreateOnePageDraftFromDeckResponse,
+  type DeckSlideDraftResponse,
   type SlideStickyNoteResponse,
 } from '@/api/modules/deck'
 import { exportOnePageDraftsPptx } from '@/api/modules/onePage'
@@ -26,7 +26,7 @@ export const useDeckDraftStore = defineStore(
     const errorMessage = ref('')
     const initialPrompt = ref('我想做一套关于 AI PPT Agent 项目可行性的内部立项汇报，目标是说服团队先投入一页 MVP。')
     const stickyNotes = ref<SlideStickyNoteResponse[]>([])
-    const generatedDrafts = ref<CreateOnePageDraftFromDeckResponse[]>([])
+    const generatedDrafts = ref<DeckSlideDraftResponse[]>([])
     const outline = reactive<DeckOutlineResponse>({
       title: 'AI PPT Agent 项目可行性汇报',
       audience: '团队内部成员',
