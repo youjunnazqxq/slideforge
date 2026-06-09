@@ -5,6 +5,7 @@ public record DeckSlideDraftResponse(
         int order,
         String title,
         String draftId,
-        String status
+        String status,
+        String errorMessage
 ) {
 }

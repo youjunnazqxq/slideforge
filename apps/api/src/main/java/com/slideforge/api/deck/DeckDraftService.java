@@ -168,15 +168,85 @@ public class DeckDraftService {
     }
 
     public List<DeckSlideDraftResponse> createSvgDraftsFromSlides(String deckId) {
+        List<DeckSlideDraftResponse> existingDrafts = generatedDraftsFromJson(getExistingDraft(deckId).getGeneratedDraftsJson());
         List<DeckSlideDraftResponse> generatedDrafts = orderedStickyNotes(deckId).stream()
-                .map(note -> {
-                    CreateOnePageDraftResponse response = createOnePageDraftFromSlide(deckId, note.slideId());
-                    onePageDraftService.generateSvg(response.draftId());
-                    return toDeckSlideDraft(note, new CreateOnePageDraftResponse(response.draftId(), "SVG_READY"));
-                })
+                .map(note -> createSvgDraftForNote(deckId, note, existingDrafts))
                 .toList();
-        saveGeneratedDrafts(deckId, generatedDrafts, "SLIDE_SVGS_READY");
+        String status = generatedDrafts.stream().anyMatch(draft -> "FAILED".equals(draft.status()))
+                ? "SLIDE_SVGS_PARTIAL"
+                : "SLIDE_SVGS_READY";
+        saveGeneratedDrafts(deckId, generatedDrafts, status);
         return generatedDrafts;
+    }
+
+    public DeckSlideDraftResponse createSvgDraftFromSlide(String deckId, String slideId) {
+        SlideStickyNote note = orderedStickyNotes(deckId).stream()
+                .filter(item -> item.slideId().equals(slideId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "页面不存在。"));
+        List<DeckSlideDraftResponse> existingDrafts = generatedDraftsFromJson(getExistingDraft(deckId).getGeneratedDraftsJson());
+        DeckSlideDraftResponse response = createSvgDraftForNote(deckId, note, existingDrafts);
+        List<DeckSlideDraftResponse> nextDrafts = upsertGeneratedDraft(existingDrafts, response);
+        String status = nextDrafts.stream().anyMatch(draft -> "FAILED".equals(draft.status()))
+                ? "SLIDE_SVGS_PARTIAL"
+                : "SLIDE_SVGS_READY";
+        saveGeneratedDrafts(deckId, nextDrafts, status);
+        return response;
+    }
+
+    private DeckSlideDraftResponse createSvgDraftForNote(
+            String deckId,
+            SlideStickyNote note,
+            List<DeckSlideDraftResponse> existingDrafts
+    ) {
+        String draftId = existingDrafts.stream()
+                .filter(draft -> draft.slideId().equals(note.slideId()) && hasText(draft.draftId()))
+                .map(DeckSlideDraftResponse::draftId)
+                .findFirst()
+                .orElse("");
+
+        try {
+            if (!hasText(draftId)) {
+                draftId = createOnePageDraftFromSlide(deckId, note.slideId()).draftId();
+            }
+
+            onePageDraftService.generateSvg(draftId);
+            return new DeckSlideDraftResponse(note.slideId(), note.order(), note.title(), draftId, "SVG_READY", null);
+        } catch (RuntimeException exception) {
+            return new DeckSlideDraftResponse(
+                    note.slideId(),
+                    note.order(),
+                    note.title(),
+                    draftId,
+                    "FAILED",
+                    errorMessage(exception)
+            );
+        }
+    }
+
+    private List<DeckSlideDraftResponse> upsertGeneratedDraft(
+            List<DeckSlideDraftResponse> generatedDrafts,
+            DeckSlideDraftResponse nextDraft
+    ) {
+        List<DeckSlideDraftResponse> nextDrafts = new ArrayList<>();
+        boolean replaced = false;
+
+        for (DeckSlideDraftResponse draft : generatedDrafts) {
+            if (draft.slideId().equals(nextDraft.slideId())) {
+                nextDrafts.add(nextDraft);
+                replaced = true;
+            } else {
+                nextDrafts.add(draft);
+            }
+        }
+
+        if (!replaced) {
+            nextDrafts.add(nextDraft);
+        }
+
+        return nextDrafts.stream()
+                .sorted(java.util.Comparator.comparingInt(DeckSlideDraftResponse::order))
+                .toList();
     }
 
     private void saveGeneratedDrafts(String deckId, List<DeckSlideDraftResponse> generatedDrafts, String status) {
@@ -192,7 +262,8 @@ public class DeckDraftService {
                 note.order(),
                 note.title(),
                 response.draftId(),
-                response.status()
+                response.status(),
+                null
         );
     }
 
@@ -369,6 +440,14 @@ public class DeckDraftService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private String errorMessage(RuntimeException exception) {
+        if (exception instanceof ResponseStatusException responseStatusException && hasText(responseStatusException.getReason())) {
+            return responseStatusException.getReason();
+        }
+
+        return hasText(exception.getMessage()) ? exception.getMessage() : "页面生成失败，请重试。";
     }
 
     private List<DeckSlideDraftResponse> generatedDraftsFromJson(String json) {

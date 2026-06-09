@@ -140,11 +140,28 @@
             <div>
               <strong>Page {{ draft.order || index + 1 }} · {{ draft.title || '未命名页面' }}</strong>
               <span>{{ draft.status }}</span>
+              <small v-if="draft.errorMessage">{{ draft.errorMessage }}</small>
             </div>
             <code>{{ draft.draftId.slice(0, 8) }}</code>
-            <el-button size="small" plain @click="runAction(() => openGeneratedDraft(draft.draftId))">
-              打开编辑
-            </el-button>
+            <div class="generated-drafts__actions">
+              <el-button
+                v-if="draft.status === 'FAILED'"
+                size="small"
+                type="primary"
+                plain
+                @click="runAction(() => retrySlideSvg(draft.slideId))"
+              >
+                重试 SVG
+              </el-button>
+              <el-button
+                :disabled="!draft.draftId"
+                size="small"
+                plain
+                @click="runAction(() => openGeneratedDraft(draft.draftId))"
+              >
+                打开编辑
+              </el-button>
+            </div>
           </article>
         </div>
       </section>
@@ -218,8 +235,21 @@ async function batchGenerateSvgs() {
 }
 
 async function openGeneratedDraft(draftId: string) {
+  if (!draftId) {
+    return
+  }
+
   await onePageStore.loadDraft(draftId)
   await router.push('/app/one-page')
+}
+
+async function retrySlideSvg(slideId: string) {
+  await deckStore.retrySlideSvg(slideId)
+  const draft = deckStore.generatedDrafts.find((item) => item.slideId === slideId)
+
+  if (draft?.status === 'SVG_READY') {
+    ElMessage.success('本页 SVG 已重新生成')
+  }
 }
 
 async function downloadDeckPptx() {
@@ -450,7 +480,8 @@ async function downloadDeckPptx() {
   }
 
   strong,
-  span {
+  span,
+  small {
     display: block;
   }
 
@@ -464,6 +495,20 @@ async function downloadDeckPptx() {
     color: #6b7280;
     font-size: 12px;
   }
+
+  small {
+    margin-top: 4px;
+    color: #b91c1c;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+}
+
+.generated-drafts__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .sticky-note {

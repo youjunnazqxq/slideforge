@@ -5,6 +5,7 @@ import {
   addDeckStickyNote,
   createDeckDraft,
   createOnePageDraftsFromDeck,
+  createSvgDraftFromDeckSlide,
   createSvgDraftsFromDeck,
   deleteDeckStickyNote,
   generateDeckOutline as requestGenerateDeckOutline,
@@ -171,6 +172,15 @@ export const useDeckDraftStore = defineStore(
       })
     }
 
+    async function retrySlideSvg(slideId: string) {
+      const id = await ensureDeck()
+
+      await runWithLoading('outline', async () => {
+        const response = await createSvgDraftFromDeckSlide(id, slideId)
+        generatedDrafts.value = upsertGeneratedDraft(response.data)
+      })
+    }
+
     async function exportDeckPptx() {
       if (!generatedDrafts.value.length || generatedDrafts.value.some((draft) => draft.status !== 'SVG_READY')) {
         await generateAllSlideSvgs()
@@ -216,6 +226,18 @@ export const useDeckDraftStore = defineStore(
       outline.slides = nextOutline.slides ?? []
     }
 
+    function upsertGeneratedDraft(nextDraft: DeckSlideDraftResponse) {
+      const nextDrafts = generatedDrafts.value.map((draft) =>
+        draft.slideId === nextDraft.slideId ? nextDraft : draft,
+      )
+
+      if (!nextDrafts.some((draft) => draft.slideId === nextDraft.slideId)) {
+        nextDrafts.push(nextDraft)
+      }
+
+      return nextDrafts.sort((first, second) => first.order - second.order)
+    }
+
     return {
       deckId,
       errorMessage,
@@ -235,6 +257,7 @@ export const useDeckDraftStore = defineStore(
       generateDeckOutline,
       loadDraft,
       moveStickyNote,
+      retrySlideSvg,
       saveStickyNotes,
     }
   },

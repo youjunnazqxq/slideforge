@@ -21,6 +21,7 @@ export interface DeckSlideDraftResponse {
   title: string
   draftId: string
   status: string
+  errorMessage?: string
 }
 
 export interface DeckOutlineResponse {
@@ -80,6 +81,10 @@ export function createOnePageDraftFromDeckSlide(deckId: string, slideId: string)
   return request.post<CreateOnePageDraftFromDeckResponse>(
     `${servicePrefix.decks}/${deckId}/slides/${slideId}/one-page-draft`,
   )
+}
+
+export function createSvgDraftFromDeckSlide(deckId: string, slideId: string) {
+  return request.post<DeckSlideDraftResponse>(`${servicePrefix.decks}/${deckId}/slides/${slideId}/svg-draft`)
 }
 
 export function createOnePageDraftsFromDeck(deckId: string) {
