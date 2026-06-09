@@ -137,6 +137,9 @@ public class PromptTemplateRegistry {
                     """
                             请基于 brief 和 researchPack 生成一页 16:9 PPT 的 pagePlan。
                             内容应适合 Bento Grid：一个核心结论块，2-4 个支撑块。
+                            每个 contentBlocks.id 必须稳定、简短、可作为后续 visualSpec.cards.blockId 引用。
+                            不要写长段落；每个 content 控制在 45 个汉字或 22 个英文词以内，适合直接上屏。
+                            如果 researchPack.limitations 存在，请把不确定性转化为风险/假设类辅助块，而不是编造结论。
 
                             brief JSON：
                             {{requirementBriefJson}}
@@ -152,6 +155,7 @@ public class PromptTemplateRegistry {
                               "contentBlocks": [
                                 {"id": "primary", "role": "primary", "type": "conclusion", "title": "string", "content": "string"}
                               ],
+                              "speakerIntent": "string",
                               "layoutIntent": "string",
                               "visualStyle": "string"
                             }
@@ -174,6 +178,8 @@ public class PromptTemplateRegistry {
                             - canvas 固定为 width=1280, height=720, viewBox="0 0 1280 720"。
                             - cards 必须覆盖 pagePlan.contentBlocks 中的主要 block id。
                             - 卡片坐标和尺寸使用整数，x/y/w/h 不能超出画布。
+                            - cards 数量控制在 3-6 个；primary 卡片面积最大，supporting 卡片要围绕 primary 排布。
+                            - 每个 card.id 必须稳定，后续 SVG 元素应使用 data-card-id 绑定。
                             - 使用专业克制的非单色主题，避免整页只有一种蓝/紫/灰。
 
                             pagePlan JSON：
@@ -210,9 +216,13 @@ public class PromptTemplateRegistry {
                             请根据 pagePlan 和 visualSpec 生成一张 16:9、viewBox="0 0 1280 720" 的单页 PPT SVG。
                             严格要求：
                             - 只返回 <svg>...</svg>。
-                            - 使用专业克制的 Bento Grid 布局。
+                            - svg 根节点必须包含 xmlns="http://www.w3.org/2000/svg"、width="1280"、height="720"、viewBox="0 0 1280 720"。
+                            - 使用专业克制的 Bento Grid 布局，并严格遵守 visualSpec.cards 的 x/y/w/h。
+                            - 每个主要卡片 group 使用 <g data-card-id="..." data-block-id="...">，便于后续编辑。
                             - 文本不要重叠，所有元素必须在 viewBox 内。
                             - 背景、卡片、标题、正文必须有清晰层级。
+                            - 不要使用 <style>、filter、clipPath、mask、foreignObject、script、image、base64、data URL、外链资源。
+                            - 文字使用 system-ui, Arial, "Microsoft YaHei", sans-serif；长文本拆成多行 <text> 或 <tspan>。
 
                             pagePlan JSON：
                             {{pagePlanJson}}
@@ -234,6 +244,9 @@ public class PromptTemplateRegistry {
                             """,
                     """
                             请根据用户需求生成完整 PPT 大纲。
+                            大纲必须保留“便利贴可编辑性”：slides 中每一页都要能独立移动、删除或改写，不依赖上一页隐藏上下文。
+                            避免一页塞多个任务；如果一个页面同时想讲背景、证据、方案和风险，请拆成多页。
+                            slides.title 要像真实 PPT 页标题，slides.message 要像这一页观众应该记住的一句话。
 
                             用户需求：
                             {{initialPrompt}}
@@ -287,6 +300,8 @@ public class PromptTemplateRegistry {
                             你是 SVG 修复器。请修复输入 SVG，使其满足安全和渲染要求。
                             必须移除 script、foreignObject、外部图片、外部字体和外部 CSS。
                             根节点必须是 svg，viewBox 必须是 0 0 1280 720。
+                            输出必须包含 width="1280"、height="720" 和闭合 </svg>。
+                            不要使用 style/filter/clipPath/mask/image/base64/data URL/外链资源。
                             """,
                     """
                             请修复以下 SVG。只输出完整 <svg>...</svg>。
