@@ -25,12 +25,16 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class OnePageDraftService {
 
     private static final String LOCAL_USER_ID = "local-user";
+    private static final int CANVAS_WIDTH = 1280;
+    private static final int CANVAS_HEIGHT = 720;
+    private static final int MIN_CARD_GAP = 20;
 
     private final OnePageDraftRepository onePageDraftRepository;
     private final WorkflowRunRepository workflowRunRepository;
@@ -380,28 +384,67 @@ public class OnePageDraftService {
                         .map(this::normalizeCard)
                         .toList();
 
+        if (!hasBentoQuality(cards)) {
+            cards = defaultVisualSpec().cards();
+        }
+
         return new VisualSpec(
-                new VisualSpec.Canvas(1280, 720, "0 0 1280 720"),
+                new VisualSpec.Canvas(CANVAS_WIDTH, CANVAS_HEIGHT, "0 0 1280 720"),
                 theme,
                 cards
         );
     }
 
     private VisualSpec.Card normalizeCard(VisualSpec.Card card) {
-        int x = clamp(card.x(), 0, 1200);
-        int y = clamp(card.y(), 0, 660);
-        int w = clamp(card.w(), 80, 1280 - x);
-        int h = clamp(card.h(), 60, 720 - y);
+        int x = clamp(card.x(), 0, CANVAS_WIDTH - 80);
+        int y = clamp(card.y(), 0, CANVAS_HEIGHT - 60);
+        int w = clamp(card.w(), 120, CANVAS_WIDTH - x);
+        int h = clamp(card.h(), 80, CANVAS_HEIGHT - y);
 
         return new VisualSpec.Card(
-                card.id(),
-                card.blockId(),
+                StringUtils.hasText(card.id()) ? card.id() : "card-" + Math.abs((card.blockId() + card.priority()).hashCode()),
+                StringUtils.hasText(card.blockId()) ? card.blockId() : "primary",
                 x,
                 y,
                 w,
                 h,
-                card.priority()
+                StringUtils.hasText(card.priority()) ? card.priority() : "secondary"
         );
+    }
+
+    private boolean hasBentoQuality(List<VisualSpec.Card> cards) {
+        if (cards.size() < 3 || cards.size() > 6) {
+            return false;
+        }
+
+        if (cards.stream().noneMatch(card -> "primary".equalsIgnoreCase(card.priority()))) {
+            return false;
+        }
+
+        for (int first = 0; first < cards.size(); first++) {
+            VisualSpec.Card firstCard = cards.get(first);
+
+            if (firstCard.x() < 0 || firstCard.y() < 0
+                    || firstCard.x() + firstCard.w() > CANVAS_WIDTH
+                    || firstCard.y() + firstCard.h() > CANVAS_HEIGHT) {
+                return false;
+            }
+
+            for (int second = first + 1; second < cards.size(); second++) {
+                if (overlapsOrTooClose(firstCard, cards.get(second))) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private boolean overlapsOrTooClose(VisualSpec.Card first, VisualSpec.Card second) {
+        return first.x() < second.x() + second.w() + MIN_CARD_GAP
+                && first.x() + first.w() + MIN_CARD_GAP > second.x()
+                && first.y() < second.y() + second.h() + MIN_CARD_GAP
+                && first.y() + first.h() + MIN_CARD_GAP > second.y();
     }
 
     private int clamp(int value, int min, int max) {
@@ -410,7 +453,7 @@ public class OnePageDraftService {
 
     private VisualSpec defaultVisualSpec() {
         return new VisualSpec(
-                new VisualSpec.Canvas(1280, 720, "0 0 1280 720"),
+                new VisualSpec.Canvas(CANVAS_WIDTH, CANVAS_HEIGHT, "0 0 1280 720"),
                 new VisualSpec.Theme("#F7F8FA", "#2563EB", "#111827", "#6B7280", "#FFFFFF", "#E5E7EB"),
                 List.of(
                         new VisualSpec.Card("hero", "primary", 64, 112, 560, 480, "primary"),

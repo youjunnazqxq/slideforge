@@ -23,6 +23,7 @@ This checklist tracks SlideForge against the referenced PPT Agent workflow:
 - Developer-facing Deck Agent API guide with BYOK setup, flow orchestration, rerun endpoints, export preconditions, and error notes.
 - Backend integration test for `runAgentFlow` orchestration with mocked AI and one-page generation services.
 - SVG validation checks root closure, 1280x720 canvas, external resources, inline styles, filters, data URLs, element bounds, text density, and Bento grid density.
+- Backend Bento visualSpec quality gate enforces 1280x720 canvas, 3-6 cards, primary-card presence, minimum card sizes, and at least 20px spacing; invalid layouts fall back to the default Bento pattern.
 
 ## Remaining Gaps
 
