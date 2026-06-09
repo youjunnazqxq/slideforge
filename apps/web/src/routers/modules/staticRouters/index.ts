@@ -43,6 +43,15 @@ export const staticRouters: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'one-page',
+        name: 'OnePageWorkspace',
+        component: () => import('@/views/ppt/index.vue'),
+        meta: {
+          title: '一页 PPT',
+          requiresAuth: true,
+        },
+      },
+      {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/profile/index.vue'),
