@@ -19,7 +19,9 @@ import com.slideforge.api.research.SearchResult;
 import com.slideforge.api.svg.SvgValidationService;
 import com.slideforge.api.workflow.WorkflowRun;
 import com.slideforge.api.workflow.WorkflowRunRepository;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -113,7 +115,7 @@ public class OnePageDraftService {
         draft = getExistingDraft(draftId);
 
         String researchMode = normalizeResearchMode(requestedMode);
-        List<SearchResult> sources = collectSources(researchMode, draft.getRequirementBriefJson());
+        List<SearchResult> sources = collectSources(draft, researchMode, start);
 
         if ("search-assisted".equals(researchMode) && sources.isEmpty()) {
             researchMode = "model-only";
@@ -245,17 +247,54 @@ public class OnePageDraftService {
         return "model-only";
     }
 
-    private List<SearchResult> collectSources(String researchMode, String requirementBriefJson) {
+    private List<SearchResult> collectSources(OnePageDraftEntity draft, String researchMode, long start) {
         if (!"search-assisted".equals(researchMode) || !searchClient.available()) {
             return List.of();
         }
 
-        return searchClient.search(toSearchQuery(requirementBriefJson)).stream()
+        List<String> queries = planSearchQueries(draft, start);
+        Map<String, SearchResult> results = new LinkedHashMap<>();
+
+        for (String query : queries) {
+            searchClient.search(query).stream()
+                    .limit(5)
+                    .forEach(result -> results.putIfAbsent(result.url(), result));
+        }
+
+        return results.values().stream()
                 .limit(10)
                 .toList();
     }
 
-    private String toSearchQuery(String requirementBriefJson) {
+    private List<String> planSearchQueries(OnePageDraftEntity draft, long start) {
+        try {
+            RenderedPrompt prompt = onePagePromptService.searchQueries(draft.getRequirementBriefJson());
+            AiChatResponse response = callPrompt(prompt);
+            SearchQueryPlan plan = parseModelJsonWithRepair(response.content(), SearchQueryPlan.class);
+            List<String> queries = normalizeQueries(plan.queries(), draft.getRequirementBriefJson());
+            recordWorkflow(draft, "searchQuery", prompt, toJson(new SearchQueryPlan(queries)), start, null);
+            return queries;
+        } catch (RuntimeException exception) {
+            return List.of(toFallbackSearchQuery(draft.getRequirementBriefJson()));
+        }
+    }
+
+    private List<String> normalizeQueries(List<String> queries, String requirementBriefJson) {
+        List<String> normalized = queries == null ? List.of() : queries.stream()
+                .filter(query -> query != null && !query.isBlank())
+                .map(String::trim)
+                .distinct()
+                .limit(5)
+                .toList();
+
+        if (normalized.isEmpty()) {
+            return List.of(toFallbackSearchQuery(requirementBriefJson));
+        }
+
+        return normalized;
+    }
+
+    private String toFallbackSearchQuery(String requirementBriefJson) {
         String compact = requirementBriefJson
                 .replace("{", " ")
                 .replace("}", " ")
@@ -459,5 +498,8 @@ public class OnePageDraftService {
                 draft.getSvgContent(),
                 fromJson(draft.getValidationReportJson(), ValidationReport.class)
         );
+    }
+
+    private record SearchQueryPlan(List<String> queries) {
     }
 }

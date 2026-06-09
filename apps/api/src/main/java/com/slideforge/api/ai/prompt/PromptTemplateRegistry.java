@@ -67,6 +67,32 @@ public class PromptTemplateRegistry {
                     "json",
                     2048
             ),
+            PromptKeys.SEARCH_QUERY_PLAN,
+            new PromptTemplate(
+                    PromptKeys.SEARCH_QUERY_PLAN,
+                    "v1",
+                    COMMON_SYSTEM + """
+                            你是 PPT 资料检索策略师。你的任务是先规划搜索词，而不是直接写内容。
+                            搜索词要服务于 PPT 决策，不追求数量，优先覆盖行业事实、竞品/方法、风险和关键概念。
+                            """,
+                    """
+                            请基于 brief 生成 3-5 条适合联网检索的 query。
+                            要求：
+                            - query 必须具体，避免空泛词。
+                            - 如果 brief 是中文，query 可以中英混合，优先选择更可能搜到高质量资料的表达。
+                            - 不要编造来源，不要输出 Markdown。
+
+                            brief JSON：
+                            {{requirementBriefJson}}
+
+                            JSON 字段必须完全如下：
+                            {
+                              "queries": ["string"]
+                            }
+                            """,
+                    "json",
+                    1024
+            ),
             PromptKeys.RESEARCH_COLLECT,
             new PromptTemplate(
                     PromptKeys.RESEARCH_COLLECT,

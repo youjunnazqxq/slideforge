@@ -32,6 +32,10 @@ public class OnePagePromptService {
         return render(PromptKeys.BRIEF_EXTRACT, Map.of("initialPrompt", initialPrompt));
     }
 
+    public RenderedPrompt searchQueries(String requirementBriefJson) {
+        return render(PromptKeys.SEARCH_QUERY_PLAN, Map.of("requirementBriefJson", requirementBriefJson));
+    }
+
     public RenderedPrompt research(String requirementBriefJson, String researchMode, String sourcesJson) {
         return render(PromptKeys.RESEARCH_COLLECT, Map.of(
                 "requirementBriefJson", requirementBriefJson,

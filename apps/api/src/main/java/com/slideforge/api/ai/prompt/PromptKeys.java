@@ -4,6 +4,7 @@ public final class PromptKeys {
 
     public static final String CONSULTANT = "consultant.v1";
     public static final String BRIEF_EXTRACT = "brief.extract.v1";
+    public static final String SEARCH_QUERY_PLAN = "search-query.plan.v1";
     public static final String RESEARCH_COLLECT = "research.collect.v1";
     public static final String DECK_OUTLINE = "deck.outline.v1";
     public static final String STICKY_NOTES = "sticky-notes.v1";
