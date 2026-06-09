@@ -8,4 +8,5 @@ pinia.use(createPersistedState())
 
 export default pinia
 export * from './modules/useAiSettingsStore'
+export * from './modules/useOnePageDraftStore'
 export * from './modules/useStore'
