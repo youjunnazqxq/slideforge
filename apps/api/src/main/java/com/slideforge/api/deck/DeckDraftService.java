@@ -228,6 +228,18 @@ public class DeckDraftService {
         return generatedDrafts;
     }
 
+    public List<DeckSlideDraftResponse> createVisualSpecDraftsFromSlides(String deckId) {
+        List<DeckSlideDraftResponse> existingDrafts = generatedDraftsFromJson(getExistingDraft(deckId).getGeneratedDraftsJson());
+        List<DeckSlideDraftResponse> generatedDrafts = orderedStickyNotes(deckId).stream()
+                .map(note -> createVisualSpecDraftForNote(deckId, note, existingDrafts))
+                .toList();
+        String status = generatedDrafts.stream().anyMatch(draft -> "FAILED".equals(draft.status()))
+                ? "VISUAL_SPECS_PARTIAL"
+                : "VISUAL_SPECS_READY";
+        saveGeneratedDrafts(deckId, generatedDrafts, status);
+        return generatedDrafts;
+    }
+
     public List<DeckSlideDraftResponse> createSvgDraftsFromSlides(String deckId) {
         List<DeckSlideDraftResponse> existingDrafts = generatedDraftsFromJson(getExistingDraft(deckId).getGeneratedDraftsJson());
         List<DeckSlideDraftResponse> generatedDrafts = orderedStickyNotes(deckId).stream()
@@ -273,6 +285,36 @@ public class DeckDraftService {
 
             onePageDraftService.generatePagePlan(draftId);
             return new DeckSlideDraftResponse(note.slideId(), note.order(), note.title(), draftId, "PAGE_PLAN_READY", null);
+        } catch (RuntimeException exception) {
+            return new DeckSlideDraftResponse(
+                    note.slideId(),
+                    note.order(),
+                    note.title(),
+                    draftId,
+                    "FAILED",
+                    errorMessage(exception)
+            );
+        }
+    }
+
+    private DeckSlideDraftResponse createVisualSpecDraftForNote(
+            String deckId,
+            SlideStickyNote note,
+            List<DeckSlideDraftResponse> existingDrafts
+    ) {
+        String draftId = existingDrafts.stream()
+                .filter(draft -> draft.slideId().equals(note.slideId()) && hasText(draft.draftId()))
+                .map(DeckSlideDraftResponse::draftId)
+                .findFirst()
+                .orElse("");
+
+        try {
+            if (!hasText(draftId)) {
+                draftId = createOnePageDraftFromSlide(deckId, note.slideId()).draftId();
+            }
+
+            onePageDraftService.generateVisualSpec(draftId);
+            return new DeckSlideDraftResponse(note.slideId(), note.order(), note.title(), draftId, "VISUAL_SPEC_READY", null);
         } catch (RuntimeException exception) {
             return new DeckSlideDraftResponse(
                     note.slideId(),

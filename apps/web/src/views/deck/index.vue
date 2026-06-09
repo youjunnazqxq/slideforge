@@ -47,6 +47,9 @@
         <el-button :loading="deckStore.loadingStage === 'outline'" type="primary" @click="runAction(batchCreatePlans)">
           Batch Page Plans
         </el-button>
+        <el-button :loading="deckStore.loadingStage === 'outline'" type="primary" @click="runAction(batchCreateVisuals)">
+          Batch Bento Specs
+        </el-button>
         <el-button :loading="deckStore.loadingStage === 'outline'" type="primary" @click="runAction(batchGenerateSvgs)">
           批量生成 SVG
         </el-button>
@@ -292,6 +295,12 @@ async function batchCreatePlans() {
   await deckStore.createAllPagePlanDrafts()
   const readyCount = deckStore.generatedDrafts.filter((draft) => draft.status === 'PAGE_PLAN_READY').length
   ElMessage.success(`Page plans ready ${readyCount} / ${deckStore.generatedDrafts.length}`)
+}
+
+async function batchCreateVisuals() {
+  await deckStore.createAllVisualSpecDrafts()
+  const readyCount = deckStore.generatedDrafts.filter((draft) => draft.status === 'VISUAL_SPEC_READY').length
+  ElMessage.success(`Bento specs ready ${readyCount} / ${deckStore.generatedDrafts.length}`)
 }
 
 async function dropStickyNote(targetSlideId: string) {

@@ -111,6 +111,13 @@ public class DeckDraftController {
         return ApiResponse.success(deckDraftService.createPagePlanDraftsFromSlides(deckId));
     }
 
+    @PostMapping("/{deckId}/slides/visual-spec-drafts")
+    public ApiResponse<List<DeckSlideDraftResponse>> createVisualSpecDraftsFromSlides(
+            @PathVariable String deckId
+    ) {
+        return ApiResponse.success(deckDraftService.createVisualSpecDraftsFromSlides(deckId));
+    }
+
     @PostMapping("/{deckId}/slides/svg-drafts")
     public ApiResponse<List<DeckSlideDraftResponse>> createSvgDraftsFromSlides(
             @PathVariable String deckId

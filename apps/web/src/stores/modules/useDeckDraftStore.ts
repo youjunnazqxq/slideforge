@@ -8,6 +8,7 @@ import {
   createPagePlanDraftsFromDeck,
   createSvgDraftFromDeckSlide,
   createSvgDraftsFromDeck,
+  createVisualSpecDraftsFromDeck,
   deleteDeckStickyNote,
   generateDeckResearch as requestGenerateDeckResearch,
   generateDeckOutline as requestGenerateDeckOutline,
@@ -233,6 +234,16 @@ export const useDeckDraftStore = defineStore(
       })
     }
 
+    async function createAllVisualSpecDrafts() {
+      const id = await ensureDeck()
+
+      await runWithLoading('outline', async () => {
+        await saveStickyNotes()
+        const response = await createVisualSpecDraftsFromDeck(id)
+        generatedDrafts.value = response.data
+      })
+    }
+
     async function generateAllSlideSvgs() {
       const id = await ensureDeck()
 
@@ -332,6 +343,7 @@ export const useDeckDraftStore = defineStore(
       createDraft,
       createAllOnePageDrafts,
       createAllPagePlanDrafts,
+      createAllVisualSpecDrafts,
       deleteStickyNote,
       exportDeckPptx,
       generateAllSlideSvgs,
