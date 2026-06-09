@@ -26,4 +26,4 @@ This checklist tracks SlideForge against the referenced PPT Agent workflow:
 
 ## Remaining Gaps
 
-- Add visual regression or browser verification for the deck three-column layout.
+- Complete browser visual verification for the deck three-column layout. See `layout-visual-verification.md` for the attempted Edge headless path and current environment blocker.
