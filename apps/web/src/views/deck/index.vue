@@ -264,6 +264,9 @@
             <div>
               <strong>Page {{ draft.order || index + 1 }} · {{ draft.title || '未命名页面' }}</strong>
               <span>{{ draft.status }}</span>
+              <small v-if="validationWarningCount(draft.slideId)">
+                {{ validationWarningCount(draft.slideId) }} validation warnings
+              </small>
               <small v-if="draft.errorMessage">{{ draft.errorMessage }}</small>
             </div>
             <div
@@ -372,6 +375,10 @@ async function createOnePage(slideId: string) {
 
 function setPrimaryTag(note: { tags?: string[] }, value: string) {
   note.tags = [value]
+}
+
+function validationWarningCount(slideId: string) {
+  return deckStore.slideValidationWarnings[slideId]?.length ?? 0
 }
 
 async function batchCreateDrafts() {

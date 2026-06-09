@@ -37,6 +37,7 @@ export const useDeckDraftStore = defineStore(
     const stickyNotes = ref<SlideStickyNoteResponse[]>([])
     const generatedDrafts = ref<DeckSlideDraftResponse[]>([])
     const slidePreviews = ref<Record<string, string>>({})
+    const slideValidationWarnings = ref<Record<string, string[]>>({})
     const workflowRuns = ref<WorkflowRunResponse[]>([])
     const researchPack = ref<DeckResearchPackResponse>({
       mode: 'model-only',
@@ -305,6 +306,7 @@ export const useDeckDraftStore = defineStore(
 
         if (response.data.svgContent) {
           slidePreviews.value[draft.slideId] = response.data.svgContent
+          slideValidationWarnings.value[draft.slideId] = response.data.validationReport?.warnings ?? []
         }
       }
     }
@@ -378,6 +380,9 @@ export const useDeckDraftStore = defineStore(
       slidePreviews.value = Object.fromEntries(
         Object.entries(slidePreviews.value).filter(([slideId]) => activeSlideIds.has(slideId)),
       )
+      slideValidationWarnings.value = Object.fromEntries(
+        Object.entries(slideValidationWarnings.value).filter(([slideId]) => activeSlideIds.has(slideId)),
+      )
     }
 
     return {
@@ -392,6 +397,7 @@ export const useDeckDraftStore = defineStore(
       researchMode,
       researchPack,
       slidePreviews,
+      slideValidationWarnings,
       status,
       stickyNotes,
       workflowRuns,
@@ -419,7 +425,7 @@ export const useDeckDraftStore = defineStore(
   {
     persist: {
       key: 'slideforge:deck-draft',
-      paths: ['deckId', 'status', 'initialPrompt', 'assistantMessage', 'researchMode', 'researchPack', 'outline', 'stickyNotes', 'generatedDrafts', 'slidePreviews'],
+      paths: ['deckId', 'status', 'initialPrompt', 'assistantMessage', 'researchMode', 'researchPack', 'outline', 'stickyNotes', 'generatedDrafts', 'slidePreviews', 'slideValidationWarnings'],
     },
   },
 )
