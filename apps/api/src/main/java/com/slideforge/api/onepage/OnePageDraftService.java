@@ -2,6 +2,9 @@ package com.slideforge.api.onepage;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.slideforge.api.ai.AiRuntimeService;
+import com.slideforge.api.ai.provider.AiChatResponse;
+import com.slideforge.api.ai.provider.AiMessage;
 import com.slideforge.api.onepage.dto.ConsultResponse;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
 import com.slideforge.api.onepage.dto.OnePageDraftResponse;
@@ -14,7 +17,6 @@ import com.slideforge.api.onepage.dto.VisualSpec;
 import com.slideforge.api.svg.SvgValidationService;
 import com.slideforge.api.workflow.WorkflowRun;
 import com.slideforge.api.workflow.WorkflowRunRepository;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -29,17 +31,20 @@ public class OnePageDraftService {
     private final OnePageDraftRepository onePageDraftRepository;
     private final WorkflowRunRepository workflowRunRepository;
     private final SvgValidationService svgValidationService;
+    private final AiRuntimeService aiRuntimeService;
     private final ObjectMapper objectMapper;
 
     public OnePageDraftService(
             OnePageDraftRepository onePageDraftRepository,
             WorkflowRunRepository workflowRunRepository,
             SvgValidationService svgValidationService,
+            AiRuntimeService aiRuntimeService,
             ObjectMapper objectMapper
     ) {
         this.onePageDraftRepository = onePageDraftRepository;
         this.workflowRunRepository = workflowRunRepository;
         this.svgValidationService = svgValidationService;
+        this.aiRuntimeService = aiRuntimeService;
         this.objectMapper = objectMapper;
     }
 
@@ -57,30 +62,68 @@ public class OnePageDraftService {
         OnePageDraftEntity draft = getExistingDraft(draftId);
         draft.setStatus("CONSULTING");
         onePageDraftRepository.save(draft);
-        String response = "已收到补充信息。下一步可以生成结构化 brief，明确受众、场景、目标、核心结论和必须包含的信息。";
-        recordWorkflow(draft, "consult", "consultant.v1", message, response, start, null);
-        return new ConsultResponse(response, true);
+
+        String prompt = """
+                你是 SlideForge 的一页 PPT 需求顾问。请根据用户输入判断信息是否足够生成结构化 brief。
+                输出 2-4 句中文：先确认已理解的主题，再指出缺失信息；如果足够，请明确说可以生成 brief。
+
+                初始需求：
+                %s
+
+                用户补充：
+                %s
+                """.formatted(draft.getInitialPrompt(), message);
+
+        AiChatResponse response = aiRuntimeService.chat(
+                LOCAL_USER_ID,
+                List.of(new AiMessage("user", prompt)),
+                "text",
+                1024
+        );
+
+        draft.setStatus("CONSULTED");
+        onePageDraftRepository.save(draft);
+        recordWorkflow(draft, "consult", "consultant", prompt, response.content(), response, start, null);
+        return new ConsultResponse(response.content(), true);
     }
 
     public RequirementBrief generateBrief(String draftId) {
         long start = System.currentTimeMillis();
         OnePageDraftEntity draft = getExistingDraft(draftId);
-        RequirementBrief brief = new RequirementBrief(
-                "AI PPT Agent 项目可行性",
-                "团队内部成员",
-                "项目立项讨论",
-                "帮助团队判断是否值得投入 MVP 开发",
-                "项目技术上可行，但第一阶段应聚焦一页闭环，先验证工作流质量。",
-                "专业、务实、信息密度适中",
-                List.of("技术可行性", "产品价值", "主要风险", "下一步建议"),
-                List.of("夸大商业价值", "承诺完全自动生成高质量 PPT"),
-                "zh-CN",
-                "16:9"
+        String prompt = """
+                你是产品型 PPT 策划助手。请把用户需求整理成一页 PPT 的结构化 brief。
+                只返回 JSON，不要 Markdown，不要解释。
+
+                JSON 字段必须完全如下：
+                {
+                  "topic": "string",
+                  "audience": "string",
+                  "scenario": "string",
+                  "goal": "string",
+                  "coreConclusion": "string",
+                  "tone": "string",
+                  "mustInclude": ["string"],
+                  "avoid": ["string"],
+                  "language": "zh-CN",
+                  "canvasRatio": "16:9"
+                }
+
+                用户需求：
+                %s
+                """.formatted(draft.getInitialPrompt());
+
+        AiChatResponse response = aiRuntimeService.chat(
+                LOCAL_USER_ID,
+                List.of(new AiMessage("user", prompt)),
+                "json",
+                2048
         );
+        RequirementBrief brief = parseModelJson(response.content(), RequirementBrief.class);
+
         draft.setRequirementBriefJson(toJson(brief));
         draft.setStatus("BRIEF_READY");
         onePageDraftRepository.save(draft);
-        recordWorkflow(draft, "brief", "brief.extract.v1", draft.getInitialPrompt(), toJson(brief), start, null);
+        recordWorkflow(draft, "brief", "brief.extract", prompt, toJson(brief), response, start, null);
         return brief;
     }
 
@@ -96,26 +139,39 @@ public class OnePageDraftService {
         long start = System.currentTimeMillis();
         OnePageDraftEntity draft = getExistingDraft(draftId);
         ensureBrief(draft);
-        ResearchPack researchPack = new ResearchPack(
-                "model-only",
-                "工作流型 AI PPT 的关键价值在于把需求澄清、内容策划和视觉生成拆成可编辑阶段，而不是直接套模板。",
-                List.of(
-                        "一页 MVP 可以先验证需求对话、brief、策划稿和 SVG 生成质量。",
-                        "Bento Grid 适合承载结论、风险、能力和下一步等多块信息。",
-                        "主要风险集中在模型输出稳定性、SVG 重叠和资料可靠性。"
-                ),
-                List.of(new ResearchPack.Evidence(
-                        "分阶段生成更可控",
-                        "用户可以在 brief、策划稿和 SVG 阶段介入修改。",
-                        List.of()
-                )),
-                List.of(),
-                List.of("当前为 model-only 资料整理，尚未接入外部来源。")
+        draft = getExistingDraft(draftId);
+
+        String prompt = """
+                你是商业与产品资料研究助手。请基于 brief 生成 model-only researchPack。
+                当前没有联网搜索，所以不要编造 URL 或外部来源，sources 必须为空数组。
+                只返回 JSON，不要 Markdown，不要解释。
+
+                JSON 字段必须完全如下：
+                {
+                  "mode": "model-only",
+                  "summary": "string",
+                  "keyPoints": ["string"],
+                  "evidence": [{"claim": "string", "support": "string", "sourceIds": []}],
+                  "sources": [],
+                  "limitations": ["string"]
+                }
+
+                brief JSON：
+                %s
+                """.formatted(draft.getRequirementBriefJson());
+
+        AiChatResponse response = aiRuntimeService.chat(
+                LOCAL_USER_ID,
+                List.of(new AiMessage("user", prompt)),
+                "json",
+                3072
         );
+        ResearchPack researchPack = parseModelJson(response.content(), ResearchPack.class);
+
         draft.setResearchPackJson(toJson(researchPack));
         draft.setStatus("RESEARCH_READY");
         onePageDraftRepository.save(draft);
-        recordWorkflow(draft, "research", "research.collect.v1", draft.getRequirementBriefJson(), toJson(researchPack), start, null);
+        recordWorkflow(draft, "research", "research.collect", prompt, toJson(researchPack), response, start, null);
         return researchPack;
     }
 
@@ -123,42 +179,45 @@ public class OnePageDraftService {
         long start = System.currentTimeMillis();
         OnePageDraftEntity draft = getExistingDraft(draftId);
         ensureBrief(draft);
-        PagePlan pagePlan = new PagePlan(
-                "AI PPT Agent：先验证一页闭环的可行性",
-                "项目技术可行，但第一阶段应聚焦一页流程，先验证工作流质量。",
-                "团队应先投入 MVP，而不是一开始做完整 PPT SaaS。",
-                List.of(
-                        new PagePlan.ContentBlock(
-                                "primary",
-                                "primary",
-                                "conclusion",
-                                "核心判断",
-                                "一页闭环可行性高，适合作为第一阶段目标。"
-                        ),
-                        new PagePlan.ContentBlock(
-                                "byok",
-                                "supporting",
-                                "list",
-                                "BYOK 接入",
-                                "用户使用自己的 OpenAI-compatible API，由后端代理调用。"
-                        ),
-                        new PagePlan.ContentBlock(
-                                "next",
-                                "next_step",
-                                "recommendation",
-                                "下一步",
-                                "稳定一页闭环后，再扩展多页便利贴和 PPTX 导出。"
-                        )
-                ),
-                "使用 Bento Grid：左侧大卡片放核心判断，右侧三张卡片放 BYOK、风险和下一步。",
-                "专业、克制、现代，避免花哨装饰，强调层级和留白。"
+        ensureResearch(draft);
+        draft = getExistingDraft(draftId);
+
+        String prompt = """
+                你是一页 PPT 信息架构师。请基于 brief 和 researchPack 生成一页 16:9 PPT 的 pagePlan。
+                内容应适合 Bento Grid：一个核心结论块，2-4 个支撑块。只返回 JSON，不要 Markdown，不要解释。
+
+                JSON 字段必须完全如下：
+                {
+                  "slideTitle": "string",
+                  "coreMessage": "string",
+                  "audienceTakeaway": "string",
+                  "contentBlocks": [
+                    {"id": "primary", "role": "primary", "type": "conclusion", "title": "string", "content": "string"}
+                  ],
+                  "layoutIntent": "string",
+                  "visualStyle": "string"
+                }
+
+                brief JSON：
+                %s
+
+                researchPack JSON：
+                %s
+                """.formatted(draft.getRequirementBriefJson(), draft.getResearchPackJson());
+
+        AiChatResponse response = aiRuntimeService.chat(
+                LOCAL_USER_ID,
+                List.of(new AiMessage("user", prompt)),
+                "json",
+                4096
         );
-        VisualSpec visualSpec = generateVisualSpec();
+        PagePlan pagePlan = parseModelJson(response.content(), PagePlan.class);
+
         draft.setPagePlanJson(toJson(pagePlan));
-        draft.setVisualSpecJson(toJson(visualSpec));
+        draft.setVisualSpecJson(toJson(generateVisualSpec()));
         draft.setStatus("PAGE_PLAN_READY");
         onePageDraftRepository.save(draft);
-        recordWorkflow(draft, "pagePlan", "page-plan.generate.v1", draft.getResearchPackJson(), toJson(pagePlan), start, null);
+        recordWorkflow(draft, "pagePlan", "page-plan.generate", prompt, toJson(pagePlan), response, start, null);
         return pagePlan;
     }
 
@@ -174,13 +233,31 @@ public class OnePageDraftService {
     public SvgGenerateResponse generateSvg(String draftId) {
         long start = System.currentTimeMillis();
         OnePageDraftEntity draft = getExistingDraft(draftId);
+
         if (draft.getPagePlanJson() == null) {
             generatePagePlan(draftId);
             draft = getExistingDraft(draftId);
         }
 
-        PagePlan pagePlan = fromJson(draft.getPagePlanJson(), PagePlan.class);
-        String rawSvg = buildSvg(pagePlan);
+        String prompt = """
+                你是 SVG 信息设计师。请根据 pagePlan 生成一张 16:9、viewBox="0 0 1280 720" 的单页 PPT SVG。
+                严格要求：
+                - 只返回 <svg>...</svg>，不要 Markdown，不要解释。
+                - 禁止 script、foreignObject、外链图片、外链字体。
+                - 使用专业克制的 Bento Grid 布局，文本不要重叠。
+                - 背景、卡片、标题、正文必须都在 viewBox 内。
+
+                pagePlan JSON：
+                %s
+                """.formatted(draft.getPagePlanJson());
+
+        AiChatResponse response = aiRuntimeService.chat(
+                LOCAL_USER_ID,
+                List.of(new AiMessage("user", prompt)),
+                "text",
+                4096
+        );
+        String rawSvg = extractSvg(response.content());
         String sanitizedSvg = svgValidationService.sanitize(rawSvg);
         ValidationReport validationReport = svgValidationService.validate(sanitizedSvg);
 
@@ -188,20 +265,25 @@ public class OnePageDraftService {
         draft.setValidationReportJson(toJson(validationReport));
         draft.setStatus(validationReport.valid() ? "SVG_READY" : "FAILED");
         onePageDraftRepository.save(draft);
-        recordWorkflow(draft, "svg", "svg.generate.v1", draft.getPagePlanJson(), sanitizedSvg, start, null);
-
+        recordWorkflow(draft, "svg", "svg.generate", prompt, sanitizedSvg, response, start, null);
         return new SvgGenerateResponse(sanitizedSvg, validationReport);
-    }
-
-    private OnePageDraftEntity getExistingDraft(String draftId) {
-        return onePageDraftRepository.findById(UUID.fromString(draftId))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "草稿不存在"));
     }
 
     private void ensureBrief(OnePageDraftEntity draft) {
         if (draft.getRequirementBriefJson() == null) {
             generateBrief(draft.getId().toString());
         }
+    }
+
+    private void ensureResearch(OnePageDraftEntity draft) {
+        if (draft.getResearchPackJson() == null) {
+            generateResearch(draft.getId().toString());
+        }
+    }
+
+    private OnePageDraftEntity getExistingDraft(String draftId) {
+        return onePageDraftRepository.findById(UUID.fromString(draftId))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "草稿不存在。"));
     }
 
     private VisualSpec generateVisualSpec() {
@@ -217,84 +299,41 @@ public class OnePageDraftService {
         );
     }
 
-    private String buildSvg(PagePlan pagePlan) {
-        List<PagePlan.ContentBlock> blocks = new ArrayList<>(pagePlan.contentBlocks());
-        String primaryContent = blocks.isEmpty() ? pagePlan.coreMessage() : blocks.getFirst().content();
-
-        return """
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
-                  <rect width="1280" height="720" fill="#F7F8FA"/>
-                  <rect x="56" y="56" width="1168" height="608" rx="24" fill="#FFFFFF" stroke="#E5E7EB"/>
-                  <text x="92" y="118" fill="#2563EB" font-size="24" font-family="Arial, sans-serif" font-weight="700">SlideForge One Page</text>
-                  <text x="92" y="172" fill="#111827" font-size="38" font-family="Arial, sans-serif" font-weight="700">%s</text>
-                  <text x="92" y="226" fill="#4B5563" font-size="22" font-family="Arial, sans-serif">%s</text>
-                  <rect x="92" y="292" width="520" height="280" rx="18" fill="#EFF6FF"/>
-                  <text x="128" y="354" fill="#1D4ED8" font-size="28" font-family="Arial, sans-serif" font-weight="700">核心判断</text>
-                  <text x="128" y="414" fill="#111827" font-size="24" font-family="Arial, sans-serif">%s</text>
-                  <rect x="652" y="292" width="240" height="130" rx="18" fill="#ECFDF5"/>
-                  <text x="684" y="345" fill="#047857" font-size="22" font-family="Arial, sans-serif" font-weight="700">BYOK</text>
-                  <text x="684" y="384" fill="#111827" font-size="18" font-family="Arial, sans-serif">用户接入自己的 API</text>
-                  <rect x="928" y="292" width="240" height="130" rx="18" fill="#F5F3FF"/>
-                  <text x="960" y="345" fill="#7C3AED" font-size="22" font-family="Arial, sans-serif" font-weight="700">Bento Grid</text>
-                  <text x="960" y="384" fill="#111827" font-size="18" font-family="Arial, sans-serif">内容驱动布局</text>
-                  <rect x="652" y="442" width="516" height="130" rx="18" fill="#FFF7ED"/>
-                  <text x="684" y="495" fill="#C2410C" font-size="22" font-family="Arial, sans-serif" font-weight="700">下一步</text>
-                  <text x="684" y="534" fill="#111827" font-size="18" font-family="Arial, sans-serif">稳定一页闭环后，再扩展多页便利贴和 PPTX 导出。</text>
-                </svg>
-                """.formatted(
-                escapeXml(trimForSvg(pagePlan.slideTitle(), 24)),
-                escapeXml(trimForSvg(pagePlan.coreMessage(), 42)),
-                escapeXml(trimForSvg(primaryContent, 28))
-        );
-    }
-
-    private String trimForSvg(String value, int maxLength) {
-        if (value == null) {
-            return "";
+    private <T> T parseModelJson(String content, Class<T> type) {
+        try {
+            return objectMapper.readValue(extractJsonObject(content), type);
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 返回 JSON 格式不合法。");
         }
-        if (value.length() <= maxLength) {
-            return value;
+    }
+
+    private String extractJsonObject(String content) {
+        int start = content.indexOf('{');
+        int end = content.lastIndexOf('}');
+
+        if (start < 0 || end <= start) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 未返回 JSON 对象。");
         }
-        return value.substring(0, maxLength - 1) + "…";
+
+        return content.substring(start, end + 1);
     }
 
-    private String escapeXml(String value) {
-        return value
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;")
-                .replace("'", "&apos;");
-    }
+    private String extractSvg(String content) {
+        int start = content.indexOf("<svg");
+        int end = content.lastIndexOf("</svg>");
 
-    private void recordWorkflow(
-            OnePageDraftEntity draft,
-            String stage,
-            String promptKey,
-            String inputJson,
-            String outputJson,
-            long start,
-            String errorMessage
-    ) {
-        workflowRunRepository.save(new WorkflowRun(
-                LOCAL_USER_ID,
-                draft.getId(),
-                stage,
-                "local-placeholder",
-                promptKey,
-                inputJson,
-                outputJson,
-                errorMessage == null ? "SUCCESS" : "FAILED",
-                errorMessage,
-                System.currentTimeMillis() - start
-        ));
+        if (start < 0 || end <= start) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 未返回 SVG。");
+        }
+
+        return content.substring(start, end + "</svg>".length());
     }
 
     private String toJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "JSON 序列化失败");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "JSON 序列化失败。");
         }
     }
 
@@ -306,8 +345,32 @@ public class OnePageDraftService {
         try {
             return objectMapper.readValue(json, type);
         } catch (JsonProcessingException exception) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "JSON 解析失败");
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "JSON 解析失败。");
         }
+    }
+
+    private void recordWorkflow(
+            OnePageDraftEntity draft,
+            String stage,
+            String promptKey,
+            String inputJson,
+            String outputJson,
+            AiChatResponse response,
+            long start,
+            String errorMessage
+    ) {
+        workflowRunRepository.save(new WorkflowRun(
+                LOCAL_USER_ID,
+                draft.getId(),
+                stage,
+                "user-configured",
+                promptKey,
+                inputJson,
+                outputJson,
+                errorMessage == null ? "SUCCESS" : "FAILED",
+                errorMessage,
+                System.currentTimeMillis() - start
+        ));
     }
 
     private OnePageDraftResponse toResponse(OnePageDraftEntity draft) {
