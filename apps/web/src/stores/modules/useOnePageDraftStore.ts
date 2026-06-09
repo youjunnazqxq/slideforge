@@ -11,6 +11,8 @@ import {
   generateSvg as requestGenerateSvg,
   generateVisualSpec as requestGenerateVisualSpec,
   getOnePageDraft,
+  updateBrief as requestUpdateBrief,
+  updatePagePlan as requestUpdatePagePlan,
   updateVisualSpec as requestUpdateVisualSpec,
   type OnePageDraftResponse,
   type PagePlanResponse,
@@ -50,6 +52,7 @@ export interface ResearchPack {
 export interface PagePlanBlock {
   id: string
   role: string
+  type: string
   title: string
   content: string
 }
@@ -147,18 +150,21 @@ export const useOnePageDraftStore = defineStore(
         {
           id: 'primary',
           role: 'primary',
+          type: 'conclusion',
           title: '核心判断',
           content: '一页闭环可行性高，适合作为第一阶段目标。',
         },
         {
           id: 'byok',
           role: 'supporting',
+          type: 'capability',
           title: 'BYOK 接入',
           content: '用户使用自己的 OpenAI-compatible API，由后端代理调用。',
         },
         {
           id: 'risk',
           role: 'risk',
+          type: 'risk',
           title: '主要风险',
           content: '生成质量不稳定、SVG 易重叠、资料来源不充分。',
         },
@@ -259,6 +265,7 @@ export const useOnePageDraftStore = defineStore(
       const id = await ensureDraft()
 
       await runWithLoading('research', async () => {
+        await persistBrief(id)
         const response = await requestGenerateResearch(id, { mode: researchMode.value })
         applyResearch(response.data)
         markStep('research', 'done')
@@ -281,10 +288,33 @@ export const useOnePageDraftStore = defineStore(
       const id = await ensureDraft()
 
       await runWithLoading('visualSpec', async () => {
+        await persistPagePlan(id)
         const response = await requestGenerateVisualSpec(id)
         applyVisualSpec(response.data)
         markStep('visualSpec', 'done')
         setStage('visualSpec')
+      })
+    }
+
+    async function saveBrief() {
+      const id = await ensureDraft()
+
+      await runWithLoading('brief', async () => {
+        const response = await persistBrief(id)
+        applyBrief(response.data)
+        markStep('brief', 'done')
+        setStage('brief')
+      })
+    }
+
+    async function savePagePlan() {
+      const id = await ensureDraft()
+
+      await runWithLoading('pagePlan', async () => {
+        const response = await persistPagePlan(id)
+        applyPagePlan(response.data)
+        markStep('pagePlan', 'done')
+        setStage('pagePlan')
       })
     }
 
@@ -303,6 +333,8 @@ export const useOnePageDraftStore = defineStore(
       const id = await ensureDraft()
 
       await runWithLoading('svg', async () => {
+        await persistPagePlan(id)
+        await requestUpdateVisualSpec(id, visualSpec)
         const response = await requestGenerateSvg(id)
         svgContent.value = response.data.svgContent
         validationWarnings.value = response.data.validationReport.warnings
@@ -414,9 +446,49 @@ export const useOnePageDraftStore = defineStore(
       pagePlan.contentBlocks = nextPagePlan.contentBlocks.map((block) => ({
         id: block.id,
         role: block.role,
+        type: block.type,
         title: block.title,
         content: block.content,
       }))
+    }
+
+    async function persistBrief(id: string) {
+      return requestUpdateBrief(id, {
+        topic: brief.topic,
+        audience: brief.audience,
+        scenario: brief.scenario,
+        goal: brief.goal,
+        coreConclusion: brief.coreConclusion,
+        tone: brief.tone,
+        mustInclude: splitTextList(brief.mustInclude),
+        avoid: splitTextList(brief.avoid),
+        language: 'zh-CN',
+        canvasRatio: '16:9',
+      })
+    }
+
+    async function persistPagePlan(id: string) {
+      return requestUpdatePagePlan(id, {
+        slideTitle: pagePlan.slideTitle,
+        coreMessage: pagePlan.coreMessage,
+        audienceTakeaway: pagePlan.audienceTakeaway,
+        layoutIntent: pagePlan.layoutIntent,
+        visualStyle: pagePlan.visualStyle,
+        contentBlocks: pagePlan.contentBlocks.map((block) => ({
+          id: block.id,
+          role: block.role,
+          type: block.type,
+          title: block.title,
+          content: block.content,
+        })),
+      })
+    }
+
+    function splitTextList(value: string) {
+      return value
+        .split(/[、,，\n]/)
+        .map((item) => item.trim())
+        .filter(Boolean)
     }
 
     function applyVisualSpec(nextVisualSpec: VisualSpecResponse) {
@@ -449,6 +521,8 @@ export const useOnePageDraftStore = defineStore(
       generatePagePlan,
       generateResearch,
       generateVisualSpec,
+      saveBrief,
+      savePagePlan,
       saveVisualSpec,
       exportPptx,
       loadDraft,

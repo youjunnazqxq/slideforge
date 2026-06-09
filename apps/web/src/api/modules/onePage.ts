@@ -136,12 +136,20 @@ export function generateBrief(draftId: string) {
   return request.post<RequirementBriefResponse>(`${servicePrefix.onePage}/drafts/${draftId}/brief`)
 }
 
+export function updateBrief(draftId: string, data: RequirementBriefResponse) {
+  return request.put<RequirementBriefResponse>(`${servicePrefix.onePage}/drafts/${draftId}/brief`, data)
+}
+
 export function generateResearch(draftId: string, data?: GenerateResearchRequest) {
   return request.post<ResearchPackResponse>(`${servicePrefix.onePage}/drafts/${draftId}/research`, data)
 }
 
 export function generatePagePlan(draftId: string) {
   return request.post<PagePlanResponse>(`${servicePrefix.onePage}/drafts/${draftId}/page-plan`)
+}
+
+export function updatePagePlan(draftId: string, data: PagePlanResponse) {
+  return request.put<PagePlanResponse>(`${servicePrefix.onePage}/drafts/${draftId}/page-plan`, data)
 }
 
 export function generateVisualSpec(draftId: string) {

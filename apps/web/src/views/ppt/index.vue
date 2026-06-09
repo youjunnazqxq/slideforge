@@ -137,6 +137,13 @@
           </div>
           <div class="stage-actions">
             <el-button
+              :loading="draftStore.loadingStage === 'brief'"
+              plain
+              @click="runAction(draftStore.saveBrief)"
+            >
+              保存 brief
+            </el-button>
+            <el-button
               :loading="draftStore.loadingStage === 'research'"
               type="primary"
               @click="runAction(draftStore.generateResearch)"
@@ -219,6 +226,13 @@
               </article>
             </div>
             <div class="stage-actions">
+              <el-button
+                :loading="draftStore.loadingStage === 'pagePlan'"
+                plain
+                @click="runAction(draftStore.savePagePlan)"
+              >
+                保存策划稿
+              </el-button>
               <el-button
                 :loading="draftStore.loadingStage === 'visualSpec'"
                 type="primary"
