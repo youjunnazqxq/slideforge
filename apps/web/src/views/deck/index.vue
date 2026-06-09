@@ -291,6 +291,24 @@
           <span v-if="failedCount">Failed {{ failedCount }}</span>
         </section>
 
+        <section class="agent-timeline">
+          <header>
+            <p>Agent Flow</p>
+            <span>{{ agentFlowDoneCount }} / {{ agentFlowTimeline.length }}</span>
+          </header>
+          <article
+            v-for="step in agentFlowTimeline"
+            :key="step.key"
+            :class="[`is-${step.status}`]"
+          >
+            <i />
+            <div>
+              <strong>{{ step.label }}</strong>
+              <span>{{ step.description }}</span>
+            </div>
+          </article>
+        </section>
+
         <section v-if="deckStore.generatedDrafts.length" class="deck-progress">
           <article>
             <strong>{{ pagePlanReadyCount }}</strong>
@@ -366,6 +384,45 @@ const pagePlanReadyCount = computed(
 const visualSpecReadyCount = computed(
   () => deckStore.generatedDrafts.filter((draft) => ['VISUAL_SPEC_READY', 'SVG_READY'].includes(draft.status)).length,
 )
+const agentFlowTimeline = computed(() => [
+  {
+    key: 'consult',
+    label: 'Consult',
+    description: deckStore.assistantMessage ? '需求澄清已完成' : '等待顾问追问',
+    status: deckStore.assistantMessage ? 'done' : currentStepStatus('consult'),
+  },
+  {
+    key: 'research',
+    label: 'Research',
+    description: deckStore.researchPack.summary ? deckStore.researchPack.mode : '等待资料整理',
+    status: deckStore.researchPack.summary ? 'done' : currentStepStatus('research'),
+  },
+  {
+    key: 'outline',
+    label: 'Outline',
+    description: deckStore.stickyNotes.length ? `${deckStore.stickyNotes.length} pages planned` : '等待结构大纲',
+    status: deckStore.stickyNotes.length ? 'done' : currentStepStatus('outline'),
+  },
+  {
+    key: 'page-plans',
+    label: 'Page Plans',
+    description: `${pagePlanReadyCount.value} / ${deckStore.generatedDrafts.length || visibleStickyNotes.value.length}`,
+    status: pagePlanReadyCount.value ? 'done' : currentStepStatus('page plans'),
+  },
+  {
+    key: 'bento-specs',
+    label: 'Bento Specs',
+    description: `${visualSpecReadyCount.value} / ${deckStore.generatedDrafts.length || visibleStickyNotes.value.length}`,
+    status: visualSpecReadyCount.value ? 'done' : currentStepStatus('bento specs'),
+  },
+  {
+    key: 'svg',
+    label: 'SVG Pages',
+    description: `${svgReadyCount.value} ready, ${failedCount.value} failed`,
+    status: svgReadyCount.value && !failedCount.value ? 'done' : currentStepStatus('server agent flow'),
+  },
+])
+const agentFlowDoneCount = computed(() => agentFlowTimeline.value.filter((step) => step.status === 'done').length)
 
 onMounted(() => {
   aiSettingsStore.loadSettings().catch(() => undefined)
@@ -421,6 +478,10 @@ function validationWarningCount(slideId: string) {
 
 function validationWarnings(slideId: string) {
   return deckStore.slideValidationWarnings[slideId] ?? []
+}
+
+function currentStepStatus(step: string) {
+  return fullPipelineRunning.value && fullPipelineStep.value === step ? 'active' : 'pending'
 }
 
 function toggleTrace(runId: string) {
@@ -648,6 +709,74 @@ async function downloadDeckPptx() {
 
     strong {
       color: #b91c1c;
+    }
+  }
+}
+
+.agent-timeline {
+  display: grid;
+  gap: 8px;
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  header p,
+  header span {
+    margin: 0;
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  article {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr);
+    gap: 8px;
+    padding: 9px;
+    border: 1px solid #edf2f7;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  i {
+    width: 10px;
+    height: 10px;
+    margin-top: 4px;
+    border-radius: 999px;
+    background: #d1d5db;
+  }
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 12px;
+  }
+
+  span {
+    margin-top: 2px;
+    color: #6b7280;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .is-done i {
+    background: #16a34a;
+  }
+
+  .is-active {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+
+    i {
+      background: #2563eb;
     }
   }
 }
