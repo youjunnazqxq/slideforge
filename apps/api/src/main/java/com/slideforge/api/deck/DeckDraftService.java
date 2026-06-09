@@ -206,8 +206,25 @@ public class DeckDraftService {
     }
 
     public List<DeckSlideDraftResponse> createOnePageDraftsFromSlides(String deckId) {
+        List<DeckSlideDraftResponse> existingDrafts = generatedDraftsFromJson(getExistingDraft(deckId).getGeneratedDraftsJson());
         List<DeckSlideDraftResponse> generatedDrafts = orderedStickyNotes(deckId).stream()
                 .map(note -> {
+                    DeckSlideDraftResponse existingDraft = existingDrafts.stream()
+                            .filter(draft -> draft.slideId().equals(note.slideId()) && hasText(draft.draftId()))
+                            .findFirst()
+                            .orElse(null);
+
+                    if (existingDraft != null) {
+                        return new DeckSlideDraftResponse(
+                                note.slideId(),
+                                note.order(),
+                                note.title(),
+                                existingDraft.draftId(),
+                                existingDraft.status(),
+                                existingDraft.errorMessage()
+                        );
+                    }
+
                     CreateOnePageDraftResponse response = createOnePageDraftFromSlide(deckId, note.slideId());
                     return toDeckSlideDraft(note, response);
                 })
