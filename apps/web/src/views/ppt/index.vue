@@ -227,6 +227,10 @@
               <el-input v-model="draftStore.pagePlan.coreMessage" :rows="3" type="textarea" />
             </label>
             <label>
+              <span>讲述意图</span>
+              <el-input v-model="draftStore.pagePlan.speakerIntent" :rows="2" type="textarea" />
+            </label>
+            <label>
               <span>布局意图</span>
               <el-input v-model="draftStore.pagePlan.layoutIntent" :rows="3" type="textarea" />
             </label>
@@ -264,6 +268,7 @@
             <div>
               <p class="section-kicker">Bento Grid Visual Spec</p>
               <h3>{{ draftStore.visualSpec.canvas.width }} x {{ draftStore.visualSpec.canvas.height }}</h3>
+              <el-tag size="small">{{ draftStore.visualSpec.layoutPattern }}</el-tag>
               <div class="theme-swatches">
                 <label v-for="(color, name) in draftStore.visualSpec.theme" :key="name">
                   <span>{{ name }}</span>

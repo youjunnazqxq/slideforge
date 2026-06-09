@@ -7,6 +7,7 @@ public record PagePlan(
         String coreMessage,
         String audienceTakeaway,
         List<ContentBlock> contentBlocks,
+        String speakerIntent,
         String layoutIntent,
         String visualStyle
 ) {

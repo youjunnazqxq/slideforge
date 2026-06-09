@@ -110,6 +110,7 @@ class DeckDraftServiceTest {
                 "Validate the staged workflow.",
                 "Start with a controllable loop.",
                 List.of(new PagePlan.ContentBlock("primary", "primary", "conclusion", "MVP", "Ship the loop.")),
+                "Show why the MVP loop is the first proof point.",
                 "Bento grid",
                 "Professional"
         );
@@ -119,6 +120,7 @@ class DeckDraftServiceTest {
         return new VisualSpec(
                 new VisualSpec.Canvas(1280, 720, "0 0 1280 720"),
                 new VisualSpec.Theme("#F7F8FA", "#2563EB", "#111827", "#6B7280", "#FFFFFF", "#E5E7EB"),
+                "hero-left",
                 List.of(new VisualSpec.Card("hero", "primary", 64, 96, 560, 520, "primary"))
         );
     }

@@ -67,6 +67,7 @@ export interface PagePlanResponse {
     title: string
     content: string
   }>
+  speakerIntent: string
   layoutIntent: string
   visualStyle: string
 }
@@ -85,6 +86,7 @@ export interface VisualSpecResponse {
     card: string
     border: string
   }
+  layoutPattern: string
   cards: Array<{
     id: string
     blockId: string

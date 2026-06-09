@@ -391,6 +391,7 @@ public class OnePageDraftService {
         return new VisualSpec(
                 new VisualSpec.Canvas(CANVAS_WIDTH, CANVAS_HEIGHT, "0 0 1280 720"),
                 theme,
+                normalizeLayoutPattern(visualSpec.layoutPattern()),
                 cards
         );
     }
@@ -447,6 +448,19 @@ public class OnePageDraftService {
                 && first.y() + first.h() + MIN_CARD_GAP > second.y();
     }
 
+    private String normalizeLayoutPattern(String pattern) {
+        if (!StringUtils.hasText(pattern)) {
+            return "hero-left";
+        }
+
+        String normalized = pattern.trim().toLowerCase();
+
+        return switch (normalized) {
+            case "hero-left", "hero-top", "mosaic", "split-hero" -> normalized;
+            default -> "hero-left";
+        };
+    }
+
     private int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(value, max));
     }
@@ -455,6 +469,7 @@ public class OnePageDraftService {
         return new VisualSpec(
                 new VisualSpec.Canvas(CANVAS_WIDTH, CANVAS_HEIGHT, "0 0 1280 720"),
                 new VisualSpec.Theme("#F7F8FA", "#2563EB", "#111827", "#6B7280", "#FFFFFF", "#E5E7EB"),
+                "hero-left",
                 List.of(
                         new VisualSpec.Card("hero", "primary", 64, 112, 560, 480, "primary"),
                         new VisualSpec.Card("byok", "byok", 656, 112, 560, 145, "secondary"),

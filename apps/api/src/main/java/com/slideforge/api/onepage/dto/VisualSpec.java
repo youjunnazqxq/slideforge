@@ -5,6 +5,7 @@ import java.util.List;
 public record VisualSpec(
         Canvas canvas,
         Theme theme,
+        String layoutPattern,
         List<Card> cards
 ) {
 

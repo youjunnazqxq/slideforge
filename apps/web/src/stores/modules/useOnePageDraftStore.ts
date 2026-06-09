@@ -63,6 +63,7 @@ export interface PagePlan {
   slideTitle: string
   coreMessage: string
   audienceTakeaway: string
+  speakerIntent: string
   layoutIntent: string
   visualStyle: string
   contentBlocks: PagePlanBlock[]
@@ -71,6 +72,7 @@ export interface PagePlan {
 export interface VisualSpec {
   canvas: VisualSpecResponse['canvas']
   theme: VisualSpecResponse['theme']
+  layoutPattern: string
   cards: VisualSpecResponse['cards']
 }
 
@@ -147,6 +149,7 @@ export const useOnePageDraftStore = defineStore(
       slideTitle: 'AI PPT Agent：先验证一页闭环的可行性',
       coreMessage: '项目技术可行，但第一阶段应聚焦一页流程，先验证工作流质量。',
       audienceTakeaway: '团队应先投入 MVP，而不是一开始做完整 PPT SaaS。',
+      speakerIntent: '先让团队认同阶段化验证，再讨论完整产品化投入。',
       layoutIntent: '使用 Bento Grid：左侧大卡片放核心判断，右侧三个小卡片放 BYOK、Bento Grid 和下一步。',
       visualStyle: '专业、克制、现代，避免花哨装饰，强调层级和留白。',
       contentBlocks: [
@@ -188,6 +191,7 @@ export const useOnePageDraftStore = defineStore(
         card: '#FFFFFF',
         border: '#E5E7EB',
       },
+      layoutPattern: 'hero-left',
       cards: [
         { id: 'hero', blockId: 'primary', x: 64, y: 112, w: 560, h: 480, priority: 'primary' },
         { id: 'byok', blockId: 'byok', x: 656, y: 112, w: 560, h: 145, priority: 'secondary' },
@@ -482,6 +486,7 @@ export const useOnePageDraftStore = defineStore(
       pagePlan.slideTitle = nextPagePlan.slideTitle
       pagePlan.coreMessage = nextPagePlan.coreMessage
       pagePlan.audienceTakeaway = nextPagePlan.audienceTakeaway
+      pagePlan.speakerIntent = nextPagePlan.speakerIntent || ''
       pagePlan.layoutIntent = nextPagePlan.layoutIntent
       pagePlan.visualStyle = nextPagePlan.visualStyle
       pagePlan.contentBlocks = nextPagePlan.contentBlocks.map((block) => ({
@@ -513,6 +518,7 @@ export const useOnePageDraftStore = defineStore(
         slideTitle: pagePlan.slideTitle,
         coreMessage: pagePlan.coreMessage,
         audienceTakeaway: pagePlan.audienceTakeaway,
+        speakerIntent: pagePlan.speakerIntent,
         layoutIntent: pagePlan.layoutIntent,
         visualStyle: pagePlan.visualStyle,
         contentBlocks: pagePlan.contentBlocks.map((block) => ({
@@ -535,6 +541,7 @@ export const useOnePageDraftStore = defineStore(
     function applyVisualSpec(nextVisualSpec: VisualSpecResponse) {
       visualSpec.canvas = nextVisualSpec.canvas
       visualSpec.theme = nextVisualSpec.theme
+      visualSpec.layoutPattern = nextVisualSpec.layoutPattern || 'hero-left'
       visualSpec.cards = nextVisualSpec.cards
     }
 
