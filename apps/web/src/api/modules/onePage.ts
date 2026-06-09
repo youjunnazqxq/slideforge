@@ -148,6 +148,10 @@ export function generateVisualSpec(draftId: string) {
   return request.post<VisualSpecResponse>(`${servicePrefix.onePage}/drafts/${draftId}/visual-spec`)
 }
 
+export function updateVisualSpec(draftId: string, data: VisualSpecResponse) {
+  return request.put<VisualSpecResponse>(`${servicePrefix.onePage}/drafts/${draftId}/visual-spec`, data)
+}
+
 export function generateSvg(draftId: string) {
   return request.post<SvgGenerateResponse>(`${servicePrefix.onePage}/drafts/${draftId}/svg`)
 }

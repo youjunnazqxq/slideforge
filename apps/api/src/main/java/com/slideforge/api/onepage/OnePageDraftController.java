@@ -101,6 +101,14 @@ public class OnePageDraftController {
         return ApiResponse.success(onePageDraftService.generateVisualSpec(draftId));
     }
 
+    @PutMapping("/{draftId}/visual-spec")
+    public ApiResponse<VisualSpec> updateVisualSpec(
+            @PathVariable String draftId,
+            @RequestBody VisualSpec visualSpec
+    ) {
+        return ApiResponse.success(onePageDraftService.updateVisualSpec(draftId, visualSpec));
+    }
+
     @PostMapping("/{draftId}/svg")
     public ApiResponse<SvgGenerateResponse> generateSvg(@PathVariable String draftId) {
         return ApiResponse.success(onePageDraftService.generateSvg(draftId));

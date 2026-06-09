@@ -185,6 +185,16 @@ public class OnePageDraftService {
         return visualSpec;
     }
 
+    public VisualSpec updateVisualSpec(String draftId, VisualSpec visualSpec) {
+        OnePageDraftEntity draft = getExistingDraft(draftId);
+        VisualSpec normalized = normalizeVisualSpec(visualSpec);
+
+        draft.setVisualSpecJson(toJson(normalized));
+        draft.setStatus("VISUAL_SPEC_READY");
+        onePageDraftRepository.save(draft);
+        return normalized;
+    }
+
     public SvgGenerateResponse generateSvg(String draftId) {
         long start = System.currentTimeMillis();
         OnePageDraftEntity draft = getExistingDraft(draftId);

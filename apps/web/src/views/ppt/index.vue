@@ -261,11 +261,35 @@
               <article v-for="card in draftStore.visualSpec.cards" :key="card.id">
                 <strong>{{ card.id }}</strong>
                 <span>{{ card.blockId }} / {{ card.priority }}</span>
-                <p>x {{ card.x }} · y {{ card.y }} · {{ card.w }} x {{ card.h }}</p>
+                <div class="visual-card-controls">
+                  <label>
+                    <span>X</span>
+                    <el-input-number v-model="card.x" :min="0" :max="1200" size="small" controls-position="right" />
+                  </label>
+                  <label>
+                    <span>Y</span>
+                    <el-input-number v-model="card.y" :min="0" :max="660" size="small" controls-position="right" />
+                  </label>
+                  <label>
+                    <span>W</span>
+                    <el-input-number v-model="card.w" :min="80" :max="1280" size="small" controls-position="right" />
+                  </label>
+                  <label>
+                    <span>H</span>
+                    <el-input-number v-model="card.h" :min="60" :max="720" size="small" controls-position="right" />
+                  </label>
+                </div>
               </article>
             </div>
 
             <div class="stage-actions">
+              <el-button
+                :loading="draftStore.loadingStage === 'visualSpec'"
+                plain
+                @click="runAction(draftStore.saveVisualSpec)"
+              >
+                保存视觉规格
+              </el-button>
               <el-button
                 :loading="draftStore.loadingStage === 'svg'"
                 type="primary"
@@ -912,8 +936,7 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
     background: #ffffff;
 
     strong,
-    span,
-    p {
+    span {
       display: block;
       margin: 0;
     }
@@ -925,10 +948,27 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
       font-weight: 700;
     }
 
-    p {
-      color: #6b7280;
-      font-size: 13px;
-    }
+  }
+}
+
+.visual-card-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+
+  label {
+    display: grid;
+    gap: 4px;
+  }
+
+  span {
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  :deep(.el-input-number) {
+    width: 100%;
   }
 }
 

@@ -11,6 +11,7 @@ import {
   generateSvg as requestGenerateSvg,
   generateVisualSpec as requestGenerateVisualSpec,
   getOnePageDraft,
+  updateVisualSpec as requestUpdateVisualSpec,
   type OnePageDraftResponse,
   type PagePlanResponse,
   type RequirementBriefResponse,
@@ -287,6 +288,17 @@ export const useOnePageDraftStore = defineStore(
       })
     }
 
+    async function saveVisualSpec() {
+      const id = await ensureDraft()
+
+      await runWithLoading('visualSpec', async () => {
+        const response = await requestUpdateVisualSpec(id, visualSpec)
+        applyVisualSpec(response.data)
+        markStep('visualSpec', 'done')
+        setStage('visualSpec')
+      })
+    }
+
     async function regenerateSvg() {
       const id = await ensureDraft()
 
@@ -437,6 +449,7 @@ export const useOnePageDraftStore = defineStore(
       generatePagePlan,
       generateResearch,
       generateVisualSpec,
+      saveVisualSpec,
       exportPptx,
       loadDraft,
       regenerateSvg,
