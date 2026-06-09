@@ -76,4 +76,11 @@ public class DeckDraftController {
     ) {
         return ApiResponse.success(deckDraftService.createOnePageDraftFromSlide(deckId, slideId));
     }
+
+    @PostMapping("/{deckId}/slides/one-page-drafts")
+    public ApiResponse<List<CreateOnePageDraftResponse>> createOnePageDraftsFromSlides(
+            @PathVariable String deckId
+    ) {
+        return ApiResponse.success(deckDraftService.createOnePageDraftsFromSlides(deckId));
+    }
 }

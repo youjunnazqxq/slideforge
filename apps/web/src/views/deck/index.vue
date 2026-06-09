@@ -31,6 +31,9 @@
         <el-button :loading="deckStore.loadingStage === 'outline'" plain @click="runAction(deckStore.saveStickyNotes)">
           保存编排
         </el-button>
+        <el-button :loading="deckStore.loadingStage === 'outline'" type="primary" @click="runAction(batchCreateDrafts)">
+          批量生成单页草稿
+        </el-button>
       </div>
 
       <el-alert
@@ -43,6 +46,7 @@
       <section class="deck-meta">
         <span>{{ deckStore.status }}</span>
         <span v-if="deckStore.deckId">Deck {{ deckStore.deckId.slice(0, 8) }}</span>
+        <span v-if="deckStore.generatedDrafts.length">已生成 {{ deckStore.generatedDrafts.length }} 个单页草稿</span>
       </section>
     </aside>
 
@@ -172,6 +176,11 @@ async function createOnePage(slideId: string) {
   } finally {
     creatingSlideId.value = ''
   }
+}
+
+async function batchCreateDrafts() {
+  await deckStore.createAllOnePageDrafts()
+  ElMessage.success(`已生成 ${deckStore.generatedDrafts.length} 个单页草稿`)
 }
 </script>
 

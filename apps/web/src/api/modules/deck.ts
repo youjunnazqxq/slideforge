@@ -73,6 +73,10 @@ export function createOnePageDraftFromDeckSlide(deckId: string, slideId: string)
   )
 }
 
+export function createOnePageDraftsFromDeck(deckId: string) {
+  return request.post<CreateOnePageDraftFromDeckResponse[]>(`${servicePrefix.decks}/${deckId}/slides/one-page-drafts`)
+}
+
 export function saveDeckStickyNotes(deckId: string, data: SlideStickyNoteResponse[]) {
   return request.put<SlideStickyNoteResponse[]>(`${servicePrefix.decks}/${deckId}/sticky-notes`, data)
 }

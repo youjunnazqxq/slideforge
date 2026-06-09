@@ -155,6 +155,30 @@ public class DeckDraftService {
         return onePageDraftService.createDraft(prompt);
     }
 
+    public List<CreateOnePageDraftResponse> createOnePageDraftsFromSlides(String deckId) {
+        DeckDraftEntity draft = getExistingDraft(deckId);
+        DeckOutline outline = fromJson(draft.getOutlineJson(), DeckOutline.class);
+
+        if (outline == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请先生成完整大纲。");
+        }
+
+        List<SlideStickyNote> notes = stickyNotesFromJson(draft.getStickyNotesJson());
+
+        if (notes.isEmpty()) {
+            notes = toStickyNotes(outline);
+        }
+
+        if (notes.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "没有可生成的页面便利贴。");
+        }
+
+        return notes.stream()
+                .sorted(java.util.Comparator.comparingInt(SlideStickyNote::order))
+                .map(note -> createOnePageDraftFromSlide(deckId, note.slideId()))
+                .toList();
+    }
+
     private SlideStickyNote stickyNoteFromOutline(DeckOutline outline, String slideId) {
         DeckOutline.Slide slide = outline.slides().stream()
                 .filter(item -> item.id().equals(slideId))

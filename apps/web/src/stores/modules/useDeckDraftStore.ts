@@ -4,12 +4,14 @@ import { computed, reactive, ref } from 'vue'
 import {
   addDeckStickyNote,
   createDeckDraft,
+  createOnePageDraftsFromDeck,
   deleteDeckStickyNote,
   generateDeckOutline as requestGenerateDeckOutline,
   getDeckDraft,
   saveDeckStickyNotes,
   type DeckDraftResponse,
   type DeckOutlineResponse,
+  type CreateOnePageDraftFromDeckResponse,
   type SlideStickyNoteResponse,
 } from '@/api/modules/deck'
 
@@ -22,6 +24,7 @@ export const useDeckDraftStore = defineStore(
     const errorMessage = ref('')
     const initialPrompt = ref('我想做一套关于 AI PPT Agent 项目可行性的内部立项汇报，目标是说服团队先投入一页 MVP。')
     const stickyNotes = ref<SlideStickyNoteResponse[]>([])
+    const generatedDrafts = ref<CreateOnePageDraftFromDeckResponse[]>([])
     const outline = reactive<DeckOutlineResponse>({
       title: 'AI PPT Agent 项目可行性汇报',
       audience: '团队内部成员',
@@ -146,6 +149,16 @@ export const useDeckDraftStore = defineStore(
       await saveStickyNotes()
     }
 
+    async function createAllOnePageDrafts() {
+      const id = await ensureDeck()
+
+      await runWithLoading('outline', async () => {
+        await saveStickyNotes()
+        const response = await createOnePageDraftsFromDeck(id)
+        generatedDrafts.value = response.data
+      })
+    }
+
     async function runWithLoading<T>(stage: 'create' | 'outline', task: () => Promise<T>) {
       loadingStage.value = stage
       errorMessage.value = ''
@@ -164,6 +177,7 @@ export const useDeckDraftStore = defineStore(
       deckId.value = draft.deckId
       status.value = draft.status
       initialPrompt.value = draft.initialPrompt || initialPrompt.value
+      generatedDrafts.value = []
 
       if (draft.outline) {
         applyOutline(draft.outline)
@@ -184,6 +198,7 @@ export const useDeckDraftStore = defineStore(
     return {
       deckId,
       errorMessage,
+      generatedDrafts,
       initialPrompt,
       isLoading,
       loadingStage,
@@ -192,6 +207,7 @@ export const useDeckDraftStore = defineStore(
       stickyNotes,
       addStickyNote,
       createDraft,
+      createAllOnePageDrafts,
       deleteStickyNote,
       generateDeckOutline,
       loadDraft,
@@ -202,7 +218,7 @@ export const useDeckDraftStore = defineStore(
   {
     persist: {
       key: 'slideforge:deck-draft',
-      paths: ['deckId', 'status', 'initialPrompt', 'outline', 'stickyNotes'],
+      paths: ['deckId', 'status', 'initialPrompt', 'outline', 'stickyNotes', 'generatedDrafts'],
     },
   },
 )
