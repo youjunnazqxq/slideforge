@@ -34,6 +34,9 @@
         <el-button :loading="deckStore.loadingStage === 'outline'" type="primary" @click="runAction(batchCreateDrafts)">
           批量生成单页草稿
         </el-button>
+        <el-button :loading="deckStore.loadingStage === 'outline'" plain @click="runAction(downloadDeckPptx)">
+          导出整套 PPTX
+        </el-button>
       </div>
 
       <el-alert
@@ -181,6 +184,20 @@ async function createOnePage(slideId: string) {
 async function batchCreateDrafts() {
   await deckStore.createAllOnePageDrafts()
   ElMessage.success(`已生成 ${deckStore.generatedDrafts.length} 个单页草稿`)
+}
+
+async function downloadDeckPptx() {
+  const blobPart = await deckStore.exportDeckPptx()
+  const blob = new Blob([blobPart], {
+    type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = `slideforge-deck-${deckStore.deckId.slice(0, 8) || 'draft'}.pptx`
+  link.click()
+  URL.revokeObjectURL(url)
 }
 </script>
 

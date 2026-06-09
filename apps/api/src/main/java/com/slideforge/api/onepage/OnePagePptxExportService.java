@@ -4,6 +4,7 @@ import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 import org.apache.poi.sl.usermodel.PictureData;
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
@@ -37,19 +38,53 @@ public class OnePagePptxExportService {
 
         try (XMLSlideShow ppt = new XMLSlideShow(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             ppt.setPageSize(new Dimension(SLIDE_WIDTH, SLIDE_HEIGHT));
-            XSLFSlide slide = ppt.createSlide();
-            XSLFPictureData pictureData = ppt.addPicture(
-                    draft.getSvgContent().getBytes(),
-                    PictureData.PictureType.SVG
-            );
-            XSLFPictureShape picture = slide.createPicture(pictureData);
-            picture.setAnchor(new Rectangle(0, 0, SLIDE_WIDTH, SLIDE_HEIGHT));
+            addSvgSlide(ppt, draft.getSvgContent());
             ppt.write(output);
 
             return new ExportedPptx(fileName(draft), output.toByteArray());
         } catch (IOException exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "PPTX 导出失败。");
         }
+    }
+
+    public ExportedPptx exportDrafts(List<String> draftIds) {
+        if (draftIds == null || draftIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请先选择要导出的页面草稿。");
+        }
+
+        List<OnePageDraftEntity> drafts = draftIds.stream()
+                .map(draftId -> onePageDraftRepository.findById(UUID.fromString(draftId))
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "草稿不存在。")))
+                .toList();
+
+        drafts.forEach(draft -> {
+            if (!StringUtils.hasText(draft.getSvgContent())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请先为所有页面生成 SVG 后再导出 PPTX。");
+            }
+        });
+
+        try (XMLSlideShow ppt = new XMLSlideShow(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            ppt.setPageSize(new Dimension(SLIDE_WIDTH, SLIDE_HEIGHT));
+
+            for (OnePageDraftEntity draft : drafts) {
+                addSvgSlide(ppt, draft.getSvgContent());
+            }
+
+            ppt.write(output);
+            return new ExportedPptx("slideforge-deck-" + drafts.size() + "-pages.pptx", output.toByteArray());
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "PPTX 导出失败。");
+        }
+    }
+
+    private void addSvgSlide(XMLSlideShow ppt, String svgContent) {
+        XSLFSlide slide = ppt.createSlide();
+        XSLFPictureData pictureData = ppt.addPicture(
+                svgContent.getBytes(),
+                PictureData.PictureType.SVG
+        );
+        XSLFPictureShape picture = slide.createPicture(pictureData);
+        picture.setAnchor(new Rectangle(0, 0, SLIDE_WIDTH, SLIDE_HEIGHT));
     }
 
     private String fileName(OnePageDraftEntity draft) {

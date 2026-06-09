@@ -14,6 +14,7 @@ import {
   type CreateOnePageDraftFromDeckResponse,
   type SlideStickyNoteResponse,
 } from '@/api/modules/deck'
+import { exportOnePageDraftsPptx } from '@/api/modules/onePage'
 
 export const useDeckDraftStore = defineStore(
   'deckDraft',
@@ -159,6 +160,15 @@ export const useDeckDraftStore = defineStore(
       })
     }
 
+    async function exportDeckPptx() {
+      if (!generatedDrafts.value.length) {
+        await createAllOnePageDrafts()
+      }
+
+      const draftIds = generatedDrafts.value.map((draft) => draft.draftId)
+      return runWithLoading('outline', async () => exportOnePageDraftsPptx(draftIds))
+    }
+
     async function runWithLoading<T>(stage: 'create' | 'outline', task: () => Promise<T>) {
       loadingStage.value = stage
       errorMessage.value = ''
@@ -209,6 +219,7 @@ export const useDeckDraftStore = defineStore(
       createDraft,
       createAllOnePageDrafts,
       deleteStickyNote,
+      exportDeckPptx,
       generateDeckOutline,
       loadDraft,
       moveStickyNote,

@@ -5,6 +5,7 @@ import com.slideforge.api.onepage.dto.ConsultRequest;
 import com.slideforge.api.onepage.dto.ConsultResponse;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftRequest;
 import com.slideforge.api.onepage.dto.CreateOnePageDraftResponse;
+import com.slideforge.api.onepage.dto.ExportOnePageDraftsRequest;
 import com.slideforge.api.onepage.dto.GenerateResearchRequest;
 import com.slideforge.api.onepage.dto.OnePageDraftResponse;
 import com.slideforge.api.onepage.dto.PagePlan;
@@ -108,6 +109,19 @@ public class OnePageDraftController {
     @PostMapping("/{draftId}/svg/regenerate")
     public ApiResponse<SvgGenerateResponse> regenerateSvg(@PathVariable String draftId) {
         return ApiResponse.success(onePageDraftService.generateSvg(draftId));
+    }
+
+    @PostMapping("/export/pptx")
+    public ResponseEntity<byte[]> exportPptxDeck(@RequestBody ExportOnePageDraftsRequest request) {
+        OnePagePptxExportService.ExportedPptx exported = onePagePptxExportService.exportDrafts(request.draftIds());
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.presentationml.presentation"))
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(exported.fileName()).build().toString()
+                )
+                .body(exported.content());
     }
 
     @PostMapping("/{draftId}/export/pptx")

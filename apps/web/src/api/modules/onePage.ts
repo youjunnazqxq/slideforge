@@ -155,3 +155,7 @@ export function generateSvg(draftId: string) {
 export function exportOnePagePptx(draftId: string) {
   return request.download(`${servicePrefix.onePage}/drafts/${draftId}/export/pptx`)
 }
+
+export function exportOnePageDraftsPptx(draftIds: string[]) {
+  return request.download(`${servicePrefix.onePage}/drafts/export/pptx`, { draftIds })
+}
