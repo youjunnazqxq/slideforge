@@ -72,7 +72,7 @@ public class DeckDraftService {
                 prompt.responseFormat(),
                 prompt.maxTokens()
         );
-        DeckOutline outline = parseModelJson(response.content(), DeckOutline.class);
+        DeckOutline outline = normalizeOutline(parseModelJson(response.content(), DeckOutline.class), draft.getInitialPrompt());
         List<SlideStickyNote> stickyNotes = toStickyNotes(outline);
 
         draft.setOutlineJson(toJson(outline));
@@ -288,6 +288,124 @@ public class DeckDraftService {
         return notes.stream()
                 .sorted(java.util.Comparator.comparingInt(SlideStickyNote::order))
                 .toList();
+    }
+
+    private DeckOutline normalizeOutline(DeckOutline outline, String initialPrompt) {
+        String title = hasText(outline.title()) ? outline.title() : fallbackTitle(initialPrompt);
+        String audience = hasText(outline.audience()) ? outline.audience() : "internal audience";
+        String scenario = hasText(outline.scenario()) ? outline.scenario() : "business presentation";
+        String coreThesis = hasText(outline.coreThesis()) ? outline.coreThesis() : title;
+        List<DeckOutline.Section> sections = normalizeSections(outline.structure());
+        List<DeckOutline.Slide> sourceSlides = outline.slides() == null ? List.of() : outline.slides();
+        List<DeckOutline.Slide> normalizedSlides = new ArrayList<>();
+
+        normalizedSlides.add(firstSlideByType(sourceSlides, "cover")
+                .orElse(new DeckOutline.Slide("", "cover", sections.getFirst().id(), title, coreThesis, "Open the presentation and frame the decision.")));
+        normalizedSlides.add(firstSlideByType(sourceSlides, "agenda")
+                .orElse(new DeckOutline.Slide("", "agenda", sections.getFirst().id(), "Agenda", agendaMessage(sections), "Preview the narrative flow.")));
+
+        for (DeckOutline.Section section : sections) {
+            normalizedSlides.add(firstSectionSlide(sourceSlides, section.id())
+                    .orElse(new DeckOutline.Slide("", "section", section.id(), section.title(), section.purpose(), "Mark the chapter transition.")));
+            sourceSlides.stream()
+                    .filter(slide -> section.id().equals(slide.sectionId()))
+                    .filter(slide -> "content".equals(normalizeSlideType(slide.type())))
+                    .forEach(normalizedSlides::add);
+        }
+
+        sourceSlides.stream()
+                .filter(slide -> slide.sectionId() == null || sections.stream().noneMatch(section -> section.id().equals(slide.sectionId())))
+                .filter(slide -> "content".equals(normalizeSlideType(slide.type())))
+                .forEach(normalizedSlides::add);
+        normalizedSlides.add(firstSlideByType(sourceSlides, "summary")
+                .orElse(new DeckOutline.Slide("", "summary", sections.getLast().id(), "Summary and next steps", coreThesis, "Close with the decision and next action.")));
+
+        return new DeckOutline(title, audience, scenario, coreThesis, sections, renumberSlides(normalizedSlides, sections));
+    }
+
+    private List<DeckOutline.Section> normalizeSections(List<DeckOutline.Section> sections) {
+        List<DeckOutline.Section> source = sections == null ? List.of() : sections;
+        List<DeckOutline.Section> normalized = new ArrayList<>();
+
+        for (int index = 0; index < source.size(); index++) {
+            DeckOutline.Section section = source.get(index);
+            String id = hasText(section.id()) ? section.id() : "section-" + (index + 1);
+            normalized.add(new DeckOutline.Section(
+                    id,
+                    hasText(section.title()) ? section.title() : "Section " + (index + 1),
+                    hasText(section.purpose()) ? section.purpose() : "Advance the deck narrative."
+            ));
+        }
+
+        if (normalized.isEmpty()) {
+            normalized.add(new DeckOutline.Section("section-1", "Main story", "Present the core argument."));
+        }
+
+        return normalized;
+    }
+
+    private java.util.Optional<DeckOutline.Slide> firstSlideByType(List<DeckOutline.Slide> slides, String type) {
+        return slides.stream()
+                .filter(slide -> type.equals(normalizeSlideType(slide.type())))
+                .findFirst();
+    }
+
+    private java.util.Optional<DeckOutline.Slide> firstSectionSlide(List<DeckOutline.Slide> slides, String sectionId) {
+        return slides.stream()
+                .filter(slide -> sectionId.equals(slide.sectionId()))
+                .filter(slide -> "section".equals(normalizeSlideType(slide.type())))
+                .findFirst();
+    }
+
+    private List<DeckOutline.Slide> renumberSlides(List<DeckOutline.Slide> slides, List<DeckOutline.Section> sections) {
+        List<DeckOutline.Slide> normalized = new ArrayList<>();
+
+        for (int index = 0; index < slides.size(); index++) {
+            DeckOutline.Slide slide = slides.get(index);
+            String fallbackSectionId = sections.get(Math.min(index, sections.size() - 1)).id();
+            normalized.add(new DeckOutline.Slide(
+                    "slide-" + String.format("%03d", index + 1),
+                    normalizeSlideType(slide.type()),
+                    hasText(slide.sectionId()) ? slide.sectionId() : fallbackSectionId,
+                    hasText(slide.title()) ? slide.title() : "Page " + (index + 1),
+                    hasText(slide.message()) ? slide.message() : "",
+                    hasText(slide.purpose()) ? slide.purpose() : "Support the deck narrative."
+            ));
+        }
+
+        return normalized;
+    }
+
+    private String normalizeSlideType(String type) {
+        if (!hasText(type)) {
+            return "content";
+        }
+
+        String normalized = type.trim().toLowerCase();
+
+        return switch (normalized) {
+            case "cover", "title" -> "cover";
+            case "agenda", "toc", "table-of-contents", "table_of_contents", "directory" -> "agenda";
+            case "section", "chapter", "divider", "transition" -> "section";
+            case "summary", "end", "ending", "closing", "next-steps", "next_steps" -> "summary";
+            default -> "content";
+        };
+    }
+
+    private String agendaMessage(List<DeckOutline.Section> sections) {
+        return sections.stream()
+                .map(DeckOutline.Section::title)
+                .filter(this::hasText)
+                .limit(5)
+                .collect(java.util.stream.Collectors.joining(" / "));
+    }
+
+    private String fallbackTitle(String initialPrompt) {
+        if (!hasText(initialPrompt)) {
+            return "Untitled deck";
+        }
+
+        return initialPrompt.length() <= 48 ? initialPrompt : initialPrompt.substring(0, 48);
     }
 
     private SlideStickyNote stickyNoteFromOutline(DeckOutline outline, String slideId) {

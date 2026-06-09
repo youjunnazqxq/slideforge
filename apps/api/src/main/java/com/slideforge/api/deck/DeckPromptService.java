@@ -21,7 +21,21 @@ public class DeckPromptService {
     public RenderedPrompt outline(String initialPrompt) {
         return promptRenderer.render(
                 promptTemplateRegistry.get(PromptKeys.DECK_OUTLINE),
-                Map.of("initialPrompt", initialPrompt)
+                Map.of("initialPrompt", withDeckSkeletonRequirements(initialPrompt))
         );
+    }
+
+    private String withDeckSkeletonRequirements(String initialPrompt) {
+        return """
+                %s
+
+                Required deck skeleton:
+                - The first slide must be type="cover".
+                - The second slide must be type="agenda".
+                - Add one type="section" divider before each major chapter.
+                - Add multiple type="content" slides after the matching section divider.
+                - The last slide must be type="summary".
+                - Keep every slide as one clear communication task, suitable for sticky-note editing and one-page SVG generation.
+                """.formatted(initialPrompt == null ? "" : initialPrompt);
     }
 }
