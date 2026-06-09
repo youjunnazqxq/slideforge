@@ -19,6 +19,7 @@ import {
   type SlideStickyNoteResponse,
 } from '@/api/modules/deck'
 import { exportOnePageDraftsPptx } from '@/api/modules/onePage'
+import { getWorkflowRuns, type WorkflowRunResponse } from '@/api/modules/workflow'
 
 export const useDeckDraftStore = defineStore(
   'deckDraft',
@@ -31,6 +32,7 @@ export const useDeckDraftStore = defineStore(
     const researchMode = ref<'model-only' | 'search-assisted'>('model-only')
     const stickyNotes = ref<SlideStickyNoteResponse[]>([])
     const generatedDrafts = ref<DeckSlideDraftResponse[]>([])
+    const workflowRuns = ref<WorkflowRunResponse[]>([])
     const researchPack = ref<DeckResearchPackResponse>({
       mode: 'model-only',
       summary: '',
@@ -95,6 +97,7 @@ export const useDeckDraftStore = defineStore(
       await runWithLoading('create', async () => {
         const response = await getDeckDraft(nextDeckId)
         applyDraft(response.data)
+        await loadWorkflowRuns(response.data.deckId)
       })
     }
 
@@ -115,7 +118,18 @@ export const useDeckDraftStore = defineStore(
         const response = await requestGenerateDeckResearch(id, { mode: researchMode.value })
         researchPack.value = response.data
         status.value = 'RESEARCH_READY'
+        await loadWorkflowRuns(id)
       })
+    }
+
+    async function loadWorkflowRuns(nextDeckId = deckId.value) {
+      if (!nextDeckId) {
+        workflowRuns.value = []
+        return
+      }
+
+      const response = await getWorkflowRuns(nextDeckId)
+      workflowRuns.value = response.data
     }
 
     async function saveStickyNotes() {
@@ -302,6 +316,7 @@ export const useDeckDraftStore = defineStore(
       researchPack,
       status,
       stickyNotes,
+      workflowRuns,
       addStickyNote,
       createDraft,
       createAllOnePageDrafts,
@@ -311,6 +326,7 @@ export const useDeckDraftStore = defineStore(
       generateDeckOutline,
       generateDeckResearch,
       loadDraft,
+      loadWorkflowRuns,
       moveStickyNote,
       reorderStickyNotes,
       retrySlideSvg,

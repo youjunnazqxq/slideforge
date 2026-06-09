@@ -65,6 +65,18 @@
         <span v-if="deckStore.generatedDrafts.length">已生成 {{ deckStore.generatedDrafts.length }} 个单页草稿</span>
         <span v-if="svgReadyCount">SVG ready {{ svgReadyCount }} / {{ deckStore.generatedDrafts.length }}</span>
       </section>
+
+      <section v-if="deckStore.workflowRuns.length" class="deck-trace">
+        <header>
+          <p>Prompt Trace</p>
+          <el-button size="small" text @click="runAction(deckStore.loadWorkflowRuns)">Refresh</el-button>
+        </header>
+        <article v-for="run in deckStore.workflowRuns.slice(0, 6)" :key="run.id">
+          <strong>{{ run.stage }}</strong>
+          <span>{{ run.promptKey || 'manual' }}</span>
+          <em>{{ run.status }} / {{ run.durationMs || 0 }}ms</em>
+        </article>
+      </section>
     </aside>
 
     <main class="deck-main">
@@ -372,6 +384,62 @@ async function downloadDeckPptx() {
   margin-top: auto;
   color: #6b7280;
   font-size: 12px;
+}
+
+.deck-trace {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+
+  header,
+  article {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  header p,
+  strong,
+  span,
+  em {
+    margin: 0;
+  }
+
+  header p {
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  article {
+    padding: 10px;
+    border: 1px solid #edf2f7;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  strong,
+  span {
+    display: block;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 13px;
+  }
+
+  span,
+  em {
+    color: #6b7280;
+    font-size: 11px;
+    font-style: normal;
+  }
+
+  em {
+    grid-column: 1 / -1;
+  }
 }
 
 .deck-main {
