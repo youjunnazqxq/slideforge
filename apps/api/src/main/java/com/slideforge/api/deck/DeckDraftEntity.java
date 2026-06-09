@@ -26,6 +26,9 @@ public class DeckDraftEntity {
     @Column(name = "sticky_notes_json")
     private String stickyNotesJson;
 
+    @Column(name = "generated_drafts_json")
+    private String generatedDraftsJson;
+
     @Column(nullable = false, length = 64)
     private String status;
 
@@ -71,6 +74,15 @@ public class DeckDraftEntity {
 
     public void setStickyNotesJson(String stickyNotesJson) {
         this.stickyNotesJson = stickyNotesJson;
+        touch();
+    }
+
+    public String getGeneratedDraftsJson() {
+        return generatedDraftsJson;
+    }
+
+    public void setGeneratedDraftsJson(String generatedDraftsJson) {
+        this.generatedDraftsJson = generatedDraftsJson;
         touch();
     }
 

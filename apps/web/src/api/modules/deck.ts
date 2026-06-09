@@ -59,6 +59,7 @@ export interface DeckDraftResponse {
   initialPrompt: string
   outline?: DeckOutlineResponse
   stickyNotes: SlideStickyNoteResponse[]
+  generatedDrafts: DeckSlideDraftResponse[]
 }
 
 export function createDeckDraft(data: CreateDeckDraftRequest) {

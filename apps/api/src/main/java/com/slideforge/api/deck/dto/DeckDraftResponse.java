@@ -7,6 +7,7 @@ public record DeckDraftResponse(
         String status,
         String initialPrompt,
         DeckOutline outline,
-        List<SlideStickyNote> stickyNotes
+        List<SlideStickyNote> stickyNotes,
+        List<DeckSlideDraftResponse> generatedDrafts
 ) {
 }

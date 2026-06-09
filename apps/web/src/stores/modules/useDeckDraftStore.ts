@@ -198,7 +198,7 @@ export const useDeckDraftStore = defineStore(
       deckId.value = draft.deckId
       status.value = draft.status
       initialPrompt.value = draft.initialPrompt || initialPrompt.value
-      generatedDrafts.value = []
+      generatedDrafts.value = draft.generatedDrafts ?? []
 
       if (draft.outline) {
         applyOutline(draft.outline)

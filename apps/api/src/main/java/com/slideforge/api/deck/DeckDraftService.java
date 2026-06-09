@@ -157,22 +157,33 @@ public class DeckDraftService {
     }
 
     public List<DeckSlideDraftResponse> createOnePageDraftsFromSlides(String deckId) {
-        return orderedStickyNotes(deckId).stream()
+        List<DeckSlideDraftResponse> generatedDrafts = orderedStickyNotes(deckId).stream()
                 .map(note -> {
                     CreateOnePageDraftResponse response = createOnePageDraftFromSlide(deckId, note.slideId());
                     return toDeckSlideDraft(note, response);
                 })
                 .toList();
+        saveGeneratedDrafts(deckId, generatedDrafts, "ONE_PAGE_DRAFTS_READY");
+        return generatedDrafts;
     }
 
     public List<DeckSlideDraftResponse> createSvgDraftsFromSlides(String deckId) {
-        return orderedStickyNotes(deckId).stream()
+        List<DeckSlideDraftResponse> generatedDrafts = orderedStickyNotes(deckId).stream()
                 .map(note -> {
                     CreateOnePageDraftResponse response = createOnePageDraftFromSlide(deckId, note.slideId());
                     onePageDraftService.generateSvg(response.draftId());
                     return toDeckSlideDraft(note, new CreateOnePageDraftResponse(response.draftId(), "SVG_READY"));
                 })
                 .toList();
+        saveGeneratedDrafts(deckId, generatedDrafts, "SLIDE_SVGS_READY");
+        return generatedDrafts;
+    }
+
+    private void saveGeneratedDrafts(String deckId, List<DeckSlideDraftResponse> generatedDrafts, String status) {
+        DeckDraftEntity draft = getExistingDraft(deckId);
+        draft.setGeneratedDraftsJson(toJson(generatedDrafts));
+        draft.setStatus(status);
+        deckDraftRepository.save(draft);
     }
 
     private DeckSlideDraftResponse toDeckSlideDraft(SlideStickyNote note, CreateOnePageDraftResponse response) {
@@ -351,11 +362,24 @@ public class DeckDraftService {
                 draft.getStatus(),
                 draft.getInitialPrompt(),
                 fromJson(draft.getOutlineJson(), DeckOutline.class),
-                stickyNotesFromJson(draft.getStickyNotesJson())
+                stickyNotesFromJson(draft.getStickyNotesJson()),
+                generatedDraftsFromJson(draft.getGeneratedDraftsJson())
         );
     }
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private List<DeckSlideDraftResponse> generatedDraftsFromJson(String json) {
+        if (json == null) {
+            return List.of();
+        }
+
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (JsonProcessingException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "生成草稿 JSON 解析失败。");
+        }
     }
 }
