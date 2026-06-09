@@ -178,6 +178,8 @@ public class PromptTemplateRegistry {
                             要求：
                             - canvas 固定为 width=1280, height=720, viewBox="0 0 1280 720"。
                             - cards 必须覆盖 pagePlan.contentBlocks 中的主要 block id。
+                            - Cards must preserve the content boundary from pagePlan.contentBlocks; do not introduce new factual claims that are not present in pagePlan.
+                            - If a content block has sourceIds, keep its blockId in the visualSpec so the later SVG can keep provenance.
                             - 卡片坐标和尺寸使用整数，x/y/w/h 不能超出画布。
                             - 任意两张卡片之间至少保留 20px 间距。
                             - cards 数量控制在 3-6 个；primary 卡片面积最大，supporting 卡片要围绕 primary 排布。
@@ -228,6 +230,8 @@ public class PromptTemplateRegistry {
                             - svg 根节点必须包含 xmlns="http://www.w3.org/2000/svg"、width="1280"、height="720"、viewBox="0 0 1280 720"。
                             - 使用专业克制的 Bento Grid 布局，并严格遵守 visualSpec.cards 的 x/y/w/h。
                             - 每个主要卡片 group 使用 <g data-card-id="..." data-block-id="...">，便于后续编辑。
+                            - If the matched pagePlan.contentBlocks item has sourceIds, add data-source-ids="id1,id2" to that same <g>; use an empty data-source-ids="" when there are no sources.
+                            - Only render facts and wording from pagePlan.contentBlocks; do not add unsupported numbers, sources, claims, logos, or external references.
                             - 文本不要重叠，所有元素必须在 viewBox 内。
                             - 背景、卡片、标题、正文必须有清晰层级。
                             - 不要使用 <style>、filter、clipPath、mask、foreignObject、script、image、base64、data URL、外链资源。

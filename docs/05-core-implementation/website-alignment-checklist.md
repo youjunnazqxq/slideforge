@@ -31,6 +31,7 @@ This checklist tracks SlideForge against the referenced PPT Agent workflow:
 - One-page Prompt Trace entries now expand inline to show prompt and output previews, matching the traceability already available in the deck agent panel.
 - One-page Bento visual design now includes switchable layout presets for hero-left, hero-top, mosaic, and split-hero, with card coordinates regenerated from the current content blocks.
 - Deck Research Pack now displays claim/support evidence cards with source labels, so deck-level research is inspectable before outline and sticky-note planning.
+- VisualSpec and SVG prompts now preserve page-plan source boundaries and ask generated SVG card groups to carry `data-source-ids` for downstream traceability.
 
 ## Remaining Gaps
 
