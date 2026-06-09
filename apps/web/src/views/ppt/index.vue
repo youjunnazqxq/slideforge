@@ -39,14 +39,35 @@
           <h2>{{ draftStore.pagePlan.slideTitle }}</h2>
         </div>
         <div class="work-header__actions">
-          <el-button :icon="DocumentChecked" plain @click="draftStore.setStage('brief')">
-            Brief
+          <el-button :loading="draftStore.loadingStage === 'create'" plain @click="runAction(draftStore.createDraft)">
+            创建草稿
           </el-button>
-          <el-button :icon="Picture" type="primary" @click="draftStore.setStage('svg')">
-            SVG 预览
+          <el-button
+            :icon="DocumentChecked"
+            :loading="draftStore.loadingStage === 'brief'"
+            plain
+            @click="runAction(draftStore.generateBrief)"
+          >
+            生成 Brief
+          </el-button>
+          <el-button
+            :icon="Picture"
+            :loading="draftStore.loadingStage === 'svg'"
+            type="primary"
+            @click="runAction(draftStore.regenerateSvg)"
+          >
+            生成 SVG
           </el-button>
         </div>
       </header>
+
+      <el-alert
+        v-if="draftStore.errorMessage"
+        class="workspace-alert"
+        :closable="false"
+        :title="draftStore.errorMessage"
+        type="error"
+      />
 
       <section class="stage-tabs">
         <button
@@ -70,6 +91,22 @@
             <div class="message message--user">
               <strong>用户需求</strong>
               <el-input v-model="draftStore.userPrompt" resize="none" :rows="5" type="textarea" />
+              <div class="stage-actions">
+                <el-button
+                  :loading="draftStore.loadingStage === 'consult'"
+                  plain
+                  type="primary"
+                  @click="runAction(draftStore.consult)"
+                >
+                  发送给 AI 顾问
+                </el-button>
+                <el-button
+                  :loading="draftStore.loadingStage === 'brief'"
+                  @click="runAction(draftStore.generateBrief)"
+                >
+                  生成 brief
+                </el-button>
+              </div>
             </div>
             <div class="message message--assistant">
               <strong>AI 顾问</strong>
@@ -89,6 +126,15 @@
               <span>{{ field.label }}</span>
               <el-input v-model="draftStore.brief[field.key]" :rows="field.rows" type="textarea" />
             </label>
+          </div>
+          <div class="stage-actions">
+            <el-button
+              :loading="draftStore.loadingStage === 'research'"
+              type="primary"
+              @click="runAction(draftStore.generateResearch)"
+            >
+              生成资料包
+            </el-button>
           </div>
         </template>
 
@@ -110,6 +156,15 @@
               title="当前为 model-only 资料整理，后续可接入联网检索并保留 sources。"
               type="info"
             />
+            <div class="stage-actions">
+              <el-button
+                :loading="draftStore.loadingStage === 'pagePlan'"
+                type="primary"
+                @click="runAction(draftStore.generatePagePlan)"
+              >
+                生成页面策划稿
+              </el-button>
+            </div>
           </div>
         </template>
 
@@ -134,6 +189,15 @@
                 <p>{{ block.content }}</p>
               </article>
             </div>
+            <div class="stage-actions">
+              <el-button
+                :loading="draftStore.loadingStage === 'svg'"
+                type="primary"
+                @click="runAction(draftStore.regenerateSvg)"
+              >
+                生成 Bento Grid SVG
+              </el-button>
+            </div>
           </div>
         </template>
 
@@ -141,10 +205,17 @@
           <div class="svg-preview">
             <div class="svg-preview__frame" v-html="draftStore.svgContent" />
             <div class="svg-preview__meta">
+              <span v-if="draftStore.draftId">Draft {{ draftStore.draftId.slice(0, 8) }}</span>
               <span>viewBox 0 0 1280 720</span>
               <span>Bento Grid</span>
-              <span>已清洗预览样例</span>
+              <span>{{ draftStore.validationWarnings.length ? '有校验提醒' : '校验通过' }}</span>
             </div>
+            <el-alert
+              v-if="draftStore.validationWarnings.length"
+              :closable="false"
+              :title="draftStore.validationWarnings.join('；')"
+              type="warning"
+            />
           </div>
         </template>
       </section>
@@ -162,9 +233,11 @@
         <header class="assistant-panel__header">
           <div>
             <p>AI Assistant</p>
-            <h3>Dify 产品介绍</h3>
+          <h3>Dify 产品介绍</h3>
           </div>
-          <el-tag type="success">资料搜索完成</el-tag>
+          <el-tag :type="draftStore.isLoading ? 'warning' : 'success'">
+            {{ draftStore.isLoading ? '处理中' : draftStore.status }}
+          </el-tag>
         </header>
 
         <div class="assistant-steps">
@@ -196,7 +269,14 @@
             type="textarea"
           />
           <div>
-            <el-button :icon="Refresh" plain @click="draftStore.regenerateSvg">重新生成</el-button>
+            <el-button
+              :icon="Refresh"
+              :loading="draftStore.loadingStage === 'svg'"
+              plain
+              @click="runAction(draftStore.regenerateSvg)"
+            >
+              重新生成
+            </el-button>
             <el-button :icon="Download" type="primary" @click="downloadSvg">下载 SVG</el-button>
           </div>
         </div>
@@ -227,6 +307,7 @@ import {
   Picture,
   Refresh,
 } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 import { useOnePageDraftStore } from '@/stores'
 import type { RequirementBrief } from '@/stores'
@@ -258,6 +339,14 @@ function downloadSvg() {
   link.download = 'slideforge-one-page.svg'
   link.click()
   URL.revokeObjectURL(url)
+}
+
+async function runAction(action: () => Promise<unknown>) {
+  try {
+    await action()
+  } catch {
+    ElMessage.error(draftStore.errorMessage || '操作失败')
+  }
 }
 </script>
 
@@ -423,10 +512,15 @@ function downloadSvg() {
 }
 
 .work-header__actions,
-.assistant-input div {
+.assistant-input div,
+.stage-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.workspace-alert {
+  margin: 12px 22px 0;
 }
 
 .stage-tabs {
@@ -491,6 +585,10 @@ function downloadSvg() {
     color: #4b5563;
     line-height: 1.8;
   }
+}
+
+.stage-actions {
+  margin-top: 14px;
 }
 
 .message--user {

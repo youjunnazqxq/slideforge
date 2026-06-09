@@ -1,8 +1,23 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
+import {
+  consultOnePageDraft,
+  createOnePageDraft,
+  generateBrief as requestGenerateBrief,
+  generatePagePlan as requestGeneratePagePlan,
+  generateResearch as requestGenerateResearch,
+  generateSvg as requestGenerateSvg,
+  getOnePageDraft,
+  type OnePageDraftResponse,
+  type PagePlanResponse,
+  type RequirementBriefResponse,
+  type ResearchPackResponse,
+} from '@/api/modules/onePage'
+
 export type WorkflowStage = 'consult' | 'brief' | 'research' | 'pagePlan' | 'svg'
 export type WorkflowStatus = 'pending' | 'running' | 'done' | 'failed'
+export type LoadingStage = WorkflowStage | 'create' | ''
 
 export interface WorkflowStepState {
   key: WorkflowStage
@@ -25,6 +40,7 @@ export interface ResearchPack {
   summary: string
   keyPoints: string[]
   sources: string[]
+  limitations: string[]
 }
 
 export interface PagePlanBlock {
@@ -68,6 +84,11 @@ export const useOnePageDraftStore = defineStore(
   'onePageDraft',
   () => {
     const currentStage = ref<WorkflowStage>('consult')
+    const draftId = ref('')
+    const status = ref('LOCAL_PREVIEW')
+    const loadingStage = ref<LoadingStage>('')
+    const errorMessage = ref('')
+    const validationWarnings = ref<string[]>([])
     const rightPanelCollapsed = ref(false)
     const userPrompt = ref('我想做一页关于 AI PPT Agent 项目可行性的汇报页，给团队内部立项讨论用。')
     const assistantMessage = ref('我会先确认受众、场景和核心结论，再生成结构化 brief。')
@@ -101,6 +122,7 @@ export const useOnePageDraftStore = defineStore(
         '主要风险集中在模型输出稳定性、SVG 重叠和资料可靠性。',
       ],
       sources: ['当前为 model-only 资料整理，尚未接入外部来源。'],
+      limitations: ['当前为本地示例，接入后端后会保存真实 researchPack。'],
     })
 
     const pagePlan = reactive<PagePlan>({
@@ -132,6 +154,7 @@ export const useOnePageDraftStore = defineStore(
     })
 
     const activeStep = computed(() => steps.find((step) => step.key === currentStage.value))
+    const isLoading = computed(() => Boolean(loadingStage.value))
 
     function setStage(stage: WorkflowStage) {
       currentStage.value = stage
@@ -141,12 +164,188 @@ export const useOnePageDraftStore = defineStore(
       rightPanelCollapsed.value = !rightPanelCollapsed.value
     }
 
-    function regenerateSvg() {
-      svgContent.value = defaultSvg.replace(
-        '先验证一页闭环',
-        pagePlan.slideTitle.slice(0, 18) || '先验证一页闭环',
-      )
-      setStage('svg')
+    async function ensureDraft() {
+      if (draftId.value) {
+        return draftId.value
+      }
+
+      return createDraft()
+    }
+
+    async function createDraft() {
+      return runWithLoading('create', async () => {
+        const response = await createOnePageDraft({
+          initialPrompt: userPrompt.value,
+        })
+
+        draftId.value = response.data.draftId
+        status.value = response.data.status
+        markStep('consult', 'done')
+
+        return draftId.value
+      })
+    }
+
+    async function loadDraft(nextDraftId = draftId.value) {
+      if (!nextDraftId) {
+        return
+      }
+
+      await runWithLoading('create', async () => {
+        const response = await getOnePageDraft(nextDraftId)
+        applyDraftResponse(response.data)
+      })
+    }
+
+    async function consult() {
+      const id = await ensureDraft()
+
+      await runWithLoading('consult', async () => {
+        const response = await consultOnePageDraft(id, {
+          message: userPrompt.value,
+        })
+
+        assistantMessage.value = response.data.message
+        markStep('consult', response.data.readyForBrief ? 'done' : 'running')
+      })
+    }
+
+    async function generateBrief() {
+      const id = await ensureDraft()
+
+      await runWithLoading('brief', async () => {
+        const response = await requestGenerateBrief(id)
+        applyBrief(response.data)
+        markStep('brief', 'done')
+        setStage('brief')
+      })
+    }
+
+    async function generateResearch() {
+      const id = await ensureDraft()
+
+      await runWithLoading('research', async () => {
+        const response = await requestGenerateResearch(id)
+        applyResearch(response.data)
+        markStep('research', 'done')
+        setStage('research')
+      })
+    }
+
+    async function generatePagePlan() {
+      const id = await ensureDraft()
+
+      await runWithLoading('pagePlan', async () => {
+        const response = await requestGeneratePagePlan(id)
+        applyPagePlan(response.data)
+        markStep('pagePlan', 'done')
+        setStage('pagePlan')
+      })
+    }
+
+    async function regenerateSvg() {
+      const id = await ensureDraft()
+
+      await runWithLoading('svg', async () => {
+        const response = await requestGenerateSvg(id)
+        svgContent.value = response.data.svgContent
+        validationWarnings.value = response.data.validationReport.warnings
+        markStep('svg', response.data.validationReport.valid ? 'done' : 'failed')
+        setStage('svg')
+      })
+    }
+
+    async function runWithLoading<T>(stage: LoadingStage, task: () => Promise<T>) {
+      loadingStage.value = stage
+      errorMessage.value = ''
+
+      if (stage && stage !== 'create') {
+        markStep(stage, 'running')
+      }
+
+      try {
+        return await task()
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '请求失败，请稍后重试'
+        errorMessage.value = message
+
+        if (stage && stage !== 'create') {
+          markStep(stage, 'failed')
+        }
+
+        throw error
+      } finally {
+        loadingStage.value = ''
+      }
+    }
+
+    function markStep(stage: WorkflowStage, nextStatus: WorkflowStatus) {
+      const step = steps.find((item) => item.key === stage)
+
+      if (step) {
+        step.status = nextStatus
+      }
+    }
+
+    function applyDraftResponse(draft: OnePageDraftResponse) {
+      draftId.value = draft.draftId
+      status.value = draft.status
+      userPrompt.value = draft.initialPrompt || userPrompt.value
+
+      if (draft.requirementBrief) {
+        applyBrief(draft.requirementBrief)
+        markStep('brief', 'done')
+      }
+
+      if (draft.researchPack) {
+        applyResearch(draft.researchPack)
+        markStep('research', 'done')
+      }
+
+      if (draft.pagePlan) {
+        applyPagePlan(draft.pagePlan)
+        markStep('pagePlan', 'done')
+      }
+
+      if (draft.svgContent) {
+        svgContent.value = draft.svgContent
+        validationWarnings.value = draft.validationReport?.warnings ?? []
+        markStep('svg', draft.validationReport?.valid === false ? 'failed' : 'done')
+      }
+    }
+
+    function applyBrief(nextBrief: RequirementBriefResponse) {
+      brief.topic = nextBrief.topic
+      brief.audience = nextBrief.audience
+      brief.scenario = nextBrief.scenario
+      brief.goal = nextBrief.goal
+      brief.coreConclusion = nextBrief.coreConclusion
+      brief.tone = nextBrief.tone
+      brief.mustInclude = nextBrief.mustInclude.join('、')
+      brief.avoid = nextBrief.avoid.join('、')
+    }
+
+    function applyResearch(nextResearch: ResearchPackResponse) {
+      researchPack.summary = nextResearch.summary
+      researchPack.keyPoints = nextResearch.keyPoints
+      researchPack.sources = nextResearch.sources.length
+        ? nextResearch.sources.map((source) => source.title || source.url)
+        : ['当前为 model-only 资料整理，尚未接入外部来源。']
+      researchPack.limitations = nextResearch.limitations
+    }
+
+    function applyPagePlan(nextPagePlan: PagePlanResponse) {
+      pagePlan.slideTitle = nextPagePlan.slideTitle
+      pagePlan.coreMessage = nextPagePlan.coreMessage
+      pagePlan.audienceTakeaway = nextPagePlan.audienceTakeaway
+      pagePlan.layoutIntent = nextPagePlan.layoutIntent
+      pagePlan.visualStyle = nextPagePlan.visualStyle
+      pagePlan.contentBlocks = nextPagePlan.contentBlocks.map((block) => ({
+        id: block.id,
+        role: block.role,
+        title: block.title,
+        content: block.content,
+      }))
     }
 
     return {
@@ -154,15 +353,27 @@ export const useOnePageDraftStore = defineStore(
       assistantMessage,
       brief,
       currentStage,
+      draftId,
+      errorMessage,
+      isLoading,
+      loadingStage,
       pagePlan,
       researchPack,
       rightPanelCollapsed,
       steps,
+      status,
       svgContent,
       userPrompt,
+      consult,
+      createDraft,
+      generateBrief,
+      generatePagePlan,
+      generateResearch,
+      loadDraft,
       regenerateSvg,
       setStage,
       toggleRightPanel,
+      validationWarnings,
     }
   },
   {
@@ -170,6 +381,8 @@ export const useOnePageDraftStore = defineStore(
       key: 'slideforge:one-page-draft',
       paths: [
         'currentStage',
+        'draftId',
+        'status',
         'rightPanelCollapsed',
         'userPrompt',
         'assistantMessage',
@@ -177,6 +390,7 @@ export const useOnePageDraftStore = defineStore(
         'researchPack',
         'pagePlan',
         'svgContent',
+        'validationWarnings',
       ],
     },
   },
