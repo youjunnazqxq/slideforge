@@ -106,6 +106,10 @@ export interface SvgGenerateResponse {
   validationReport: ValidationReportResponse
 }
 
+export interface UpdateSvgRequest {
+  svgContent: string
+}
+
 export interface OnePageDraftResponse {
   draftId: string
   status: string
@@ -162,6 +166,10 @@ export function updateVisualSpec(draftId: string, data: VisualSpecResponse) {
 
 export function generateSvg(draftId: string) {
   return request.post<SvgGenerateResponse>(`${servicePrefix.onePage}/drafts/${draftId}/svg`)
+}
+
+export function updateSvg(draftId: string, data: UpdateSvgRequest) {
+  return request.put<SvgGenerateResponse>(`${servicePrefix.onePage}/drafts/${draftId}/svg`, data)
 }
 
 export function exportOnePagePptx(draftId: string) {

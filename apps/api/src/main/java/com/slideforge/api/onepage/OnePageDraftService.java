@@ -228,6 +228,20 @@ public class OnePageDraftService {
         return new SvgGenerateResponse(sanitizedSvg, validationReport);
     }
 
+    public SvgGenerateResponse updateSvg(String draftId, String svgContent) {
+        long start = System.currentTimeMillis();
+        OnePageDraftEntity draft = getExistingDraft(draftId);
+        String sanitizedSvg = svgValidationService.sanitize(extractSvg(svgContent));
+        ValidationReport validationReport = svgValidationService.validate(sanitizedSvg);
+
+        draft.setSvgContent(sanitizedSvg);
+        draft.setValidationReportJson(toJson(validationReport));
+        draft.setStatus(validationReport.valid() ? "SVG_READY" : "FAILED");
+        onePageDraftRepository.save(draft);
+        recordWorkflow(draft, "svgManualEdit", null, sanitizedSvg, start, null);
+        return new SvgGenerateResponse(sanitizedSvg, validationReport);
+    }
+
     private AiChatResponse callPrompt(RenderedPrompt prompt) {
         return aiRuntimeService.chat(
                 LOCAL_USER_ID,
@@ -487,8 +501,8 @@ public class OnePageDraftService {
                 draft.getId(),
                 stage,
                 "user-configured",
-                prompt.key(),
-                prompt.renderedUserPrompt(),
+                prompt == null ? "manual" : prompt.key(),
+                prompt == null ? "" : prompt.renderedUserPrompt(),
                 outputJson,
                 errorMessage == null ? "SUCCESS" : "FAILED",
                 errorMessage,

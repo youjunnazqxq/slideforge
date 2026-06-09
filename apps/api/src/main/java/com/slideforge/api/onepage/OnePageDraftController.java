@@ -12,6 +12,7 @@ import com.slideforge.api.onepage.dto.PagePlan;
 import com.slideforge.api.onepage.dto.RequirementBrief;
 import com.slideforge.api.onepage.dto.ResearchPack;
 import com.slideforge.api.onepage.dto.SvgGenerateResponse;
+import com.slideforge.api.onepage.dto.UpdateSvgRequest;
 import com.slideforge.api.onepage.dto.VisualSpec;
 import jakarta.validation.Valid;
 import org.springframework.http.ContentDisposition;
@@ -117,6 +118,14 @@ public class OnePageDraftController {
     @PostMapping("/{draftId}/svg/regenerate")
     public ApiResponse<SvgGenerateResponse> regenerateSvg(@PathVariable String draftId) {
         return ApiResponse.success(onePageDraftService.generateSvg(draftId));
+    }
+
+    @PutMapping("/{draftId}/svg")
+    public ApiResponse<SvgGenerateResponse> updateSvg(
+            @PathVariable String draftId,
+            @Valid @RequestBody UpdateSvgRequest request
+    ) {
+        return ApiResponse.success(onePageDraftService.updateSvg(draftId, request.svgContent()));
     }
 
     @PostMapping("/export/pptx")

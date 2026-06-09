@@ -338,6 +338,29 @@
               </ul>
               <span v-else>安全、画布和基础布局检查未发现问题。</span>
             </section>
+            <section class="svg-source-editor">
+              <header>
+                <div>
+                  <p>SVG Source</p>
+                  <h3>Editable final SVG</h3>
+                </div>
+                <el-button
+                  :loading="draftStore.loadingStage === 'svg'"
+                  type="primary"
+                  @click="runAction(draftStore.saveSvgContent)"
+                >
+                  Save SVG
+                </el-button>
+              </header>
+              <el-input
+                v-model="draftStore.svgContent"
+                class="svg-source-editor__input"
+                resize="vertical"
+                :rows="12"
+                spellcheck="false"
+                type="textarea"
+              />
+            </section>
           </div>
         </template>
       </section>
@@ -1121,6 +1144,49 @@ function cardStyle(card: VisualSpec['cards'][number]): CSSProperties {
   > span {
     color: #047857;
     font-size: 13px;
+  }
+}
+
+.svg-source-editor {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 1040px);
+  margin: 0 auto;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  p,
+  h3 {
+    margin: 0;
+  }
+
+  p {
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  h3 {
+    margin-top: 4px;
+    color: #111827;
+    font-size: 16px;
+  }
+}
+
+.svg-source-editor__input {
+  :deep(textarea) {
+    font-family: Consolas, 'Liberation Mono', monospace;
+    font-size: 12px;
+    line-height: 1.5;
   }
 }
 

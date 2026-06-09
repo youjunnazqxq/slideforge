@@ -13,6 +13,7 @@ import {
   getOnePageDraft,
   updateBrief as requestUpdateBrief,
   updatePagePlan as requestUpdatePagePlan,
+  updateSvg as requestUpdateSvg,
   updateVisualSpec as requestUpdateVisualSpec,
   type OnePageDraftResponse,
   type PagePlanResponse,
@@ -349,6 +350,24 @@ export const useOnePageDraftStore = defineStore(
         const response = await requestGenerateSvg(id)
         svgContent.value = response.data.svgContent
         validationWarnings.value = response.data.validationReport.warnings
+        status.value = response.data.validationReport.valid ? 'SVG_READY' : 'FAILED'
+        markStep('svg', response.data.validationReport.valid ? 'done' : 'failed')
+        setStage('svg')
+        await loadWorkflowRuns(id)
+      })
+    }
+
+    async function saveSvgContent() {
+      const id = await ensureDraft()
+
+      await runWithLoading('svg', async () => {
+        const response = await requestUpdateSvg(id, {
+          svgContent: svgContent.value,
+        })
+
+        svgContent.value = response.data.svgContent
+        validationWarnings.value = response.data.validationReport.warnings
+        status.value = response.data.validationReport.valid ? 'SVG_READY' : 'FAILED'
         markStep('svg', response.data.validationReport.valid ? 'done' : 'failed')
         setStage('svg')
         await loadWorkflowRuns(id)
@@ -546,6 +565,7 @@ export const useOnePageDraftStore = defineStore(
       generateVisualSpec,
       saveBrief,
       savePagePlan,
+      saveSvgContent,
       saveVisualSpec,
       exportPptx,
       loadDraft,
